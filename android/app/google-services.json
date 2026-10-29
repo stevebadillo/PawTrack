@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "118457420954",
+    "project_id": "pawtrack-espoch",
+    "storage_bucket": "pawtrack-espoch.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:118457420954:android:74e77015c465376e7d6323",
+        "android_client_info": {
+          "package_name": "ec.edu.espoch.pawtrack"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJMVbIZPjzRuGsEz3HFNhcbN8q3XOtJcg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
