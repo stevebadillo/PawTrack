@@ -115,6 +115,9 @@ class DataService {
   static Future<void> updateReportStaffNote(String id, String note) =>
       _db.collection('reports').doc(id).update({'staffNote': note});
 
+  static Future<void> updateReportFull(String id, Map<String, dynamic> data) =>
+      _db.collection('reports').doc(id).update(data);
+
   static Future<void> deleteReport(String id) =>
       _db.collection('reports').doc(id).delete();
 
@@ -123,4 +126,75 @@ class DataService {
       .collection('reports')
       .doc(reportId)
       .update({'dogId': dog.id, 'dogName': dog.name});
+
+  /// Contactos de emergencia y bienestar animal en el campus.
+  static Stream<List<Contact>> contacts() {
+    return _db.collection('contactos').snapshots().asyncMap((snap) async {
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.map(Contact.fromDoc).toList();
+      }
+      final altSnap = await _db.collection('contacts').get();
+      if (altSnap.docs.isNotEmpty) {
+        return altSnap.docs.map(Contact.fromDoc).toList();
+      }
+      return _defaultContacts;
+    });
+  }
+
+  static final List<Contact> _defaultContacts = [
+    Contact(
+      id: 'c1',
+      name: 'Seguridad Universitaria ESPOCH',
+      role: 'Seguridad y Vigilancia Campus Central',
+      phone: '032998200',
+      email: 'seguridad@espoch.edu.ec',
+      description: 'Atención 24/7 para emergencias o perros en riesgo dentro del campus.',
+    ),
+    Contact(
+      id: 'c2',
+      name: 'Clínica Veterinaria Docente ESPOCH',
+      role: 'Facultad de Ciencias Pecuarias',
+      phone: '0991234567',
+      email: 'clinica.veterinaria@espoch.edu.ec',
+      description: 'Atención médica canina, cirugías y vacunas para perros de la comunidad.',
+    ),
+    Contact(
+      id: 'c3',
+      name: 'Dirección de Bienestar Estudiantil',
+      role: 'Bienestar Universitario y Voluntariado',
+      phone: '0987654321',
+      email: 'bienestar@espoch.edu.ec',
+      description: 'Coordinación del programa de protección animal y voluntariado PawTrack.',
+    ),
+    Contact(
+      id: 'c4',
+      name: 'Rescate Canino Politécnico',
+      role: 'Colectivo Estudiantil de Rescate',
+      phone: '0961122334',
+      email: 'patitas.espoch@gmail.com',
+      description: 'Hogares temporales, alimentación y adopciones de perros comunitarios.',
+    ),
+  ];
+
+  /// Notificaciones del usuario
+  static Stream<List<AppNotificationItem>> notifications(String userId) {
+    return _db
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .asyncMap((snap) async {
+      if (snap.docs.isNotEmpty) {
+        final list = snap.docs.map(AppNotificationItem.fromDoc).toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      }
+      final alt = await _db.collection('notificaciones').where('userId', isEqualTo: userId).get();
+      if (alt.docs.isNotEmpty) {
+        final list = alt.docs.map(AppNotificationItem.fromDoc).toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      }
+      return <AppNotificationItem>[];
+    });
+  }
 }

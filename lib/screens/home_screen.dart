@@ -6,6 +6,8 @@ import 'dogs_screen.dart';
 import 'reports_screen.dart';
 import 'map_screen.dart';
 import 'report_form_screen.dart';
+import 'notifications_screen.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,8 +26,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final compact = MediaQuery.sizeOf(context).width < 380;
     return StreamBuilder<AppUser>(
       stream: _user,
       builder: (context, snap) {
@@ -37,8 +37,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.cloud_off_outlined,
-                        size: 48, color: colors.error),
+                    const Icon(Icons.cloud_off_outlined,
+                        size: 48, color: Color(0xFFDC2626)),
                     const SizedBox(height: 16),
                     const Text('No pudimos cargar tu perfil',
                         style: TextStyle(fontWeight: FontWeight.w700)),
@@ -55,9 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           );
         }
-        if (!snap.hasData)
+        if (!snap.hasData) {
           return const Scaffold(
               body: Center(child: CircularProgressIndicator()));
+        }
+
         final user = snap.data!;
         final pages = [
           DashboardScreen(
@@ -68,73 +70,207 @@ class _HomeScreenState extends State<HomeScreen> {
           DogsScreen(user: user),
           ReportsScreen(user: user),
           MapScreen(user: user),
+          NotificationsScreen(user: user),
+          SettingsScreen(user: user),
         ];
+
         return Scaffold(
-          appBar: AppBar(
-            titleSpacing: compact ? 8 : 16,
-            title: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(11),
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    width: compact ? 34 : 38,
-                    height: compact ? 34 : 38,
-                    fit: BoxFit.cover,
-                  ),
+          backgroundColor: const Color(0xFFF4F7FF),
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(66),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Builder(
+                  builder: (scaffoldContext) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Left: Hamburger menu button -> Opens Drawer
+                        InkWell(
+                          onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.03),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.menu_rounded,
+                                color: Color(0xFF0F2B48),
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // Center: Role pill badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                user.isStaff ? 'Personal' : 'Estudiante',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F2B48),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.verified_user_outlined,
+                                size: 16,
+                                color: Color(0xFF1E5BB0),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Right: Circular Paw badge -> Takes user directly to Home (Inicio)
+                        InkWell(
+                          onTap: () => setState(() => _tab = 0),
+                          borderRadius: BorderRadius.circular(22),
+                          child: Tooltip(
+                            message: 'Ir al inicio',
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Container(
+                                  width: 42,
+                                  height: 42,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF0D3B73),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.pets,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF97316),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: Colors.white, width: 1.5),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
-                SizedBox(width: compact ? 7 : 10),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('PawTrack',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: compact ? 16 : 18)),
-  
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              if (compact)
-                Tooltip(
-                  message: user.isStaff ? 'Personal' : 'Estudiante',
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Icon(
-                      user.isStaff
-                          ? Icons.admin_panel_settings_outlined
-                          : Icons.school_outlined,
-                      size: 21,
-                      color: colors.primary,
-                    ),
-                  ),
-                )
-              else
-                Padding(
-                  padding: const EdgeInsets.only(right: 4),
-                  child: Chip(
-                    avatar: Icon(
-                        user.isStaff
-                            ? Icons.admin_panel_settings_outlined
-                            : Icons.school_outlined,
-                        size: 17),
-                    label: Text(user.isStaff ? 'Personal' : 'Estudiante'),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-              IconButton(
-                tooltip: 'Cerrar sesión',
-                onPressed: AuthService.logout,
-                icon: const Icon(Icons.logout_rounded),
               ),
-            ],
+            ),
+          ),
+          drawer: Drawer(
+            backgroundColor: const Color(0xFFF4F7FC),
+            elevation: 0,
+            child: SafeArea(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  // Início
+                  _DrawerItem(
+                    title: 'Início',
+                    icon: Icons.home_rounded,
+                    iconColor: const Color(0xFFF59E0B),
+                    isActive: _tab == 0,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _tab = 0);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  // Reportes
+                  _DrawerItem(
+                    title: 'Reportes',
+                    icon: Icons.assignment_outlined,
+                    isActive: _tab == 2,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _tab = 2);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  // Perros
+                  _DrawerItem(
+                    title: 'Perros',
+                    icon: Icons.pets,
+                    isActive: _tab == 1,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _tab = 1);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  // Notificaciones
+                  _DrawerItem(
+                    title: 'Notificaciones',
+                    icon: Icons.notifications_none_rounded,
+                    isActive: _tab == 4,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _tab = 4);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  // Configuraciones
+                  _DrawerItem(
+                    title: 'Configuraciones',
+                    icon: Icons.settings_outlined,
+                    isActive: _tab == 5,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _tab = 5);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  // Salir
+                  _DrawerItem(
+                    title: 'Salir',
+                    icon: Icons.logout_rounded,
+                    isActive: false,
+                    onTap: () {
+                      Navigator.pop(context);
+                      AuthService.logout();
+                    },
+                  ),
+                ],
+              ),
+            ),
           ),
           body: Center(
             child: ConstrainedBox(
@@ -142,43 +278,94 @@ class _HomeScreenState extends State<HomeScreen> {
               child: IndexedStack(index: _tab, children: pages),
             ),
           ),
-          floatingActionButton: _tab == 0
-              ? null
-              : compact
-                  ? FloatingActionButton(
-                      tooltip: 'Crear reporte',
-                      onPressed: () => _createReport(user),
-                      child: const Icon(Icons.add_a_photo_outlined),
-                    )
-                  : FloatingActionButton.extended(
-                      onPressed: () => _createReport(user),
-                      icon: const Icon(Icons.add_a_photo_outlined),
-                      label: const Text('Reportar'),
-                    ),
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: _tab,
-            onDestinationSelected: (index) => setState(() => _tab = index),
-            destinations: const [
-              NavigationDestination(
-                  icon: Icon(Icons.space_dashboard_outlined),
-                  selectedIcon: Icon(Icons.space_dashboard),
-                  label: 'Inicio'),
-              NavigationDestination(
-                  icon: Icon(Icons.pets_outlined),
-                  selectedIcon: Icon(Icons.pets),
-                  label: 'Perros'),
-              NavigationDestination(
-                  icon: Icon(Icons.assignment_outlined),
-                  selectedIcon: Icon(Icons.assignment),
-                  label: 'Reportes'),
-              NavigationDestination(
-                  icon: Icon(Icons.map_outlined),
-                  selectedIcon: Icon(Icons.map),
-                  label: 'Mapa'),
-            ],
-          ),
         );
       },
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Color? iconColor;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _DrawerItem({
+    required this.title,
+    required this.icon,
+    this.iconColor,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (isActive) {
+      return Padding(
+        padding: const EdgeInsets.only(right: 28),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF0B3A6F),
+            borderRadius: BorderRadius.horizontal(right: Radius.circular(28)),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius:
+                  const BorderRadius.horizontal(right: Radius.circular(28)),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                child: Row(
+                  children: [
+                    Icon(icon, color: iconColor ?? Colors.white, size: 22),
+                    const SizedBox(width: 16),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 28),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius:
+              const BorderRadius.horizontal(right: Radius.circular(28)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+            child: Row(
+              children: [
+                Icon(icon, color: const Color(0xFF0B3A6F), size: 22),
+                const SizedBox(width: 16),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF0B3A6F),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

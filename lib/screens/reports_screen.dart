@@ -3,16 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
+import 'edit_report_screen.dart';
 
 const statusLabels = {
   'pendiente': 'Pendiente',
-  'en_atencion': 'En atención',
+  'en_revision': 'En revisión',
+  'en_atencion': 'En revisión',
   'resuelto': 'Resuelto'
 };
 
 Color statusColor(String s) => s == 'resuelto'
-    ? const Color(0xFF2A5FC4)
-    : (s == 'en_atencion' ? const Color(0xFFE8521A) : Colors.red);
+    ? const Color(0xFF15803D)
+    : (s == 'en_atencion' || s == 'en_revision'
+        ? const Color(0xFFB45309)
+        : const Color(0xFFDC2626));
 
 /// Personal: ve y gestiona todos (RF12, RF13). Estudiante: ve los suyos.
 class ReportsScreen extends StatelessWidget {
@@ -382,14 +386,28 @@ class _ReportSheetState extends State<ReportSheet> {
             ],
             Text(
                 'Ubicación: ${r.lat.toStringAsFixed(5)}, ${r.lng.toStringAsFixed(5)}'),
-            if (!user.isStaff &&
-                user.uid == r.reporterId &&
-                r.status == 'pendiente') ...[
+            if ((!user.isStaff &&
+                    user.uid == r.reporterId &&
+                    r.status == 'pendiente') ||
+                user.isStaff) ...[
               const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () => _editDescription(r),
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Editar descripción'),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D3B73),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            EditReportScreen(report: r, user: user)),
+                  );
+                },
+                icon: const Icon(Icons.edit_outlined, size: 18),
+                label: const Text('Editar reporte'),
               ),
             ],
             if (user.isStaff) ...[

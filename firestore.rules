@@ -25,16 +25,37 @@ service cloud.firestore {
     match /reports/{rId} {
       allow read: if isStaff() || (signedIn() && resource.data.reporterId == request.auth.uid);
       allow create: if signedIn() && request.resource.data.reporterId == request.auth.uid;
-      // Students may edit only the description of their own report while it is
-      // still pending. Any staff action moves it out of this editable state.
+      // Students may edit their own report while it is still pending.
       allow update: if isStaff() || (
         signedIn() &&
         resource.data.reporterId == request.auth.uid &&
         resource.data.status == 'pendiente' &&
         request.resource.data.status == 'pendiente' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['description'])
+        request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'description', 'descripcion', 'dogStatus', 'estadoPerro',
+          'incidentType', 'tipoIncidencia', 'photoBase64', 'photos',
+          'evidencias', 'photoUrl', 'lat', 'lng', 'dogId', 'dogName',
+          'perroId', 'perroNombre'
+        ])
       );
       allow delete: if isStaff();
+    }
+
+    match /contactos/{cId} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+    match /contacts/{cId} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+    match /notificaciones/{nId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow write: if isStaff();
+    }
+    match /notifications/{nId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow write: if isStaff();
     }
   }
 }

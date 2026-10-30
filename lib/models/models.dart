@@ -77,7 +77,7 @@ class Vaccine {
   }
 }
 
-const reportStatuses = ['pendiente', 'en_atencion', 'resuelto'];
+const reportStatuses = ['pendiente', 'en_revision', 'en_atencion', 'resuelto'];
 
 class Report {
   final String id,
@@ -92,6 +92,10 @@ class Report {
   final bool dogDeleted;
   final double lat, lng;
   final DateTime createdAt;
+  final String dogStatus; // 'con_vida', 'herido', 'sin_vida', 'no_se'
+  final String incidentType; // 'perdido', 'agresivo', 'otro'
+  final List<String> photos; // base64 or url list
+
   Report({
     required this.id,
     required this.description,
@@ -107,26 +111,107 @@ class Report {
     this.dogId,
     this.dogName,
     this.dogDeleted = false,
+    this.dogStatus = 'herido',
+    this.incidentType = 'perdido',
+    this.photos = const [],
   });
+
   bool get unidentified => dogId == null && dogName == null;
 
   factory Report.fromDoc(DocumentSnapshot d) {
-    final m = d.data() as Map<String, dynamic>;
+    final m = d.data() as Map<String, dynamic>? ?? {};
+    final rawPhotos = m['photos'] ?? m['evidencias'] ?? m['imagenes'];
+    List<String> parsedPhotos = [];
+    if (rawPhotos is List) {
+      parsedPhotos = rawPhotos.map((e) => e.toString()).toList();
+    } else if (m['photoBase64'] != null && (m['photoBase64'] as String).isNotEmpty) {
+      parsedPhotos = [m['photoBase64'] as String];
+    } else if (m['photoUrl'] != null && (m['photoUrl'] as String).isNotEmpty) {
+      parsedPhotos = [m['photoUrl'] as String];
+    }
+
     return Report(
       id: d.id,
-      description: m['description'] ?? '',
+      description: m['description'] ?? m['descripcion'] ?? '',
       photoUrl: m['photoUrl'] ?? '',
       photoBase64: m['photoBase64'] ?? '',
-      status: m['status'] ?? 'pendiente',
-      staffNote: m['staffNote'] ?? '',
-      reporterId: m['reporterId'] ?? '',
-      reporterName: m['reporterName'] ?? '',
-      lat: (m['lat'] ?? 0).toDouble(),
-      lng: (m['lng'] ?? 0).toDouble(),
-      createdAt: (m['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      dogId: m['dogId'],
-      dogName: m['dogName'],
+      status: m['status'] ?? m['estado'] ?? 'pendiente',
+      staffNote: m['staffNote'] ?? m['notaPersonal'] ?? '',
+      reporterId: m['reporterId'] ?? m['usuarioId'] ?? '',
+      reporterName: m['reporterName'] ?? m['usuarioNombre'] ?? '',
+      lat: (m['lat'] ?? m['latitud'] ?? 0).toDouble(),
+      lng: (m['lng'] ?? m['longitud'] ?? 0).toDouble(),
+      createdAt: (m['createdAt'] as Timestamp?)?.toDate() ??
+          (m['fecha'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
+      dogId: m['dogId'] ?? m['perroId'],
+      dogName: m['dogName'] ?? m['perroNombre'],
       dogDeleted: m['dogDeleted'] ?? false,
+      dogStatus: m['dogStatus'] ?? m['estadoPerro'] ?? 'herido',
+      incidentType: m['incidentType'] ?? m['tipoIncidencia'] ?? m['tipo'] ?? 'perdido',
+      photos: parsedPhotos,
+    );
+  }
+}
+
+class Contact {
+  final String id;
+  final String name;
+  final String role;
+  final String phone;
+  final String email;
+  final String description;
+
+  Contact({
+    required this.id,
+    required this.name,
+    required this.role,
+    required this.phone,
+    this.email = '',
+    this.description = '',
+  });
+
+  factory Contact.fromDoc(DocumentSnapshot d) {
+    final m = d.data() as Map<String, dynamic>? ?? {};
+    return Contact(
+      id: d.id,
+      name: m['name'] ?? m['nombre'] ?? '',
+      role: m['role'] ?? m['cargo'] ?? m['departamento'] ?? 'Contacto ESPOCH',
+      phone: m['phone'] ?? m['telefono'] ?? m['celular'] ?? '',
+      email: m['email'] ?? m['correo'] ?? '',
+      description: m['description'] ?? m['descripcion'] ?? '',
+    );
+  }
+}
+
+class AppNotificationItem {
+  final String id;
+  final String title;
+  final String body;
+  final DateTime createdAt;
+  final bool isRead;
+  final String? reportId;
+
+  AppNotificationItem({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.createdAt,
+    this.isRead = false,
+    this.reportId,
+  });
+
+  factory AppNotificationItem.fromDoc(DocumentSnapshot d) {
+    final m = d.data() as Map<String, dynamic>? ?? {};
+    return AppNotificationItem(
+      id: d.id,
+      title: m['title'] ?? m['titulo'] ?? 'Notificación',
+      body: m['body'] ?? m['mensaje'] ?? m['descripcion'] ?? '',
+      createdAt: (m['createdAt'] as Timestamp?)?.toDate() ??
+          (m['fecha'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
+      isRead: m['isRead'] ?? m['leido'] ?? false,
+      reportId: m['reportId'] ?? m['reporteId'],
     );
   }
 }
