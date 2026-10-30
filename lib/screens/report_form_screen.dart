@@ -169,16 +169,20 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                     color: Color(0xFF0F2B48),
                   ),
                 ),
-                // Top right Paw badge
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF0D3B73),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.pets, color: Colors.white, size: 18),
+                // Top right Paw badge -> Lleva al inicio
+                InkWell(
+                  onTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF0D3B73),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.pets, color: Colors.white, size: 18),
+                    ),
                   ),
                 ),
               ],

@@ -947,8 +947,6 @@ class _ReportSheetState extends State<ReportSheet> {
       ],
     );
   }
-    );
-  }
 }
 
 Widget _reportImage(String url, {double? width, double? height}) {

@@ -146,17 +146,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
 
                         // Right: Circular Paw badge -> Takes user directly to Home (Inicio)
-                        InkWell(
-                          onTap: () => setState(() => _tab = 0),
-                          borderRadius: BorderRadius.circular(22),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            if (_tab != 0) {
+                              setState(() => _tab = 0);
+                            }
+                          },
                           child: Tooltip(
                             message: 'Ir al inicio',
                             child: Stack(
                               clipBehavior: Clip.none,
                               children: [
                                 Container(
-                                  width: 42,
-                                  height: 42,
+                                  width: 44,
+                                  height: 44,
                                   decoration: const BoxDecoration(
                                     color: Color(0xFF0D3B73),
                                     shape: BoxShape.circle,
@@ -173,8 +177,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   top: 0,
                                   right: 0,
                                   child: Container(
-                                    width: 10,
-                                    height: 10,
+                                    width: 11,
+                                    height: 11,
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFF97316),
                                       shape: BoxShape.circle,
