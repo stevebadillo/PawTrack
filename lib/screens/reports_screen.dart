@@ -1,9 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
+import 'dog_detail_screen.dart';
 import 'edit_report_screen.dart';
+
+extension StringCapitalize on String {
+  String capitalize() => isEmpty ? '' : '${this[0].toUpperCase()}${substring(1)}';
+}
 
 const statusLabels = {
   'pendiente': 'Pendiente',
@@ -333,112 +340,576 @@ class _ReportSheetState extends State<ReportSheet> {
   Widget build(BuildContext context) {
     final r = widget.report;
     final user = widget.user;
+    final isResolved = r.status == 'resuelto';
+    final isInReview = r.status == 'en_revision' || r.status == 'en_atencion';
+    final isPending = r.status == 'pendiente';
+    final hasPhoto = r.photoBase64.isNotEmpty || r.photoUrl.isNotEmpty;
+    final latLng = LatLng(r.lat != 0 ? r.lat : -1.65595, r.lng != 0 ? r.lng : -78.67508);
+
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 36),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Header
             Row(
               children: [
-                IconButton(
-                  tooltip: 'Volver',
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.arrow_back_rounded),
+                InkWell(
+                  onTap: () => Navigator.pop(context),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.chevron_left_rounded, color: Color(0xFF0F2B48), size: 24),
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 4),
-                Text('Detalle del reporte',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        )),
+                const SizedBox(width: 14),
+                const Text(
+                  'Detalle del reporte',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F2B48),
+                  ),
+                ),
               ],
             ),
-            ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: reportPhoto(r, height: 220)),
-            const SizedBox(height: 12),
-            Text(
-                r.unidentified
-                    ? 'Perro sin identificar'
-                    : (r.dogName ?? 'Perro'),
-                style: Theme.of(context).textTheme.titleLarge),
-            Text('Reportado por ${r.reporterName}'),
-            const SizedBox(height: 8),
-            Text(r.description),
-            if (r.staffNote.trim().isNotEmpty) ...[
-              const SizedBox(height: 14),
-              Card(
-                margin: EdgeInsets.zero,
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 18),
+
+            // Status Banner
+            if (isResolved)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEAF8F0),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFB7E4C7)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFDCFCE7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.check_circle_outline, color: Color(0xFF15803D), size: 22),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Resuelto',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13.5,
+                              color: Color(0xFF15803D),
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Este reporte ya fue atendido. Aquí ves cómo se resolvió.',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF166534),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (isInReview)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFEF3C7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.access_time_rounded, color: Color(0xFFB45309), size: 22),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'En revisión',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13.5,
+                              color: Color(0xFFB45309),
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'El personal está revisando tu reporte. Ya no se puede editar.',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF92400E),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F2),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFFECDD3)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFFE4E6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48), size: 22),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Pendiente',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13.5,
+                              color: Color(0xFFBE123C),
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Puedes editar tu reporte hasta que el personal empiece a revisarlo.',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF881337),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 20),
+
+            // Si está resuelto: Sección "Cómo se resolvió"
+            if (isResolved) ...[
+              const Text(
+                'Cómo se resolvió',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'ACCIONES REALIZADAS',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF059669),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      r.staffNote.isNotEmpty
+                          ? r.staffNote
+                          : 'El personal atendió la incidencia en el campus y el perro se encuentra en buen estado.',
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF334155), height: 1.35),
+                    ),
+                    const SizedBox(height: 14),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Atendido el', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                        Text(
+                          DateFormat('dd/MM · HH:mm').format(r.createdAt),
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5, color: Color(0xFF0F2B48)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Sección "Perro" con enlace a Ficha del perro
+              const Text(
+                'Perro',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+              ),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: r.dogId != null
+                    ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => DogDetailScreen(dogId: r.dogId!, user: user)),
+                        )
+                    : null,
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
                     children: [
-                      const Text('Nota del personal',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 4),
-                      Text(r.staffNote),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          color: const Color(0xFFF1F5FD),
+                          child: const Icon(Icons.pets, color: Color(0xFF1E5BB0), size: 24),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              r.dogName?.isNotEmpty == true ? r.dogName! : 'Rodolfo',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: Color(0xFF0B2545),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              r.dogId != null ? 'Ver ficha del perro' : 'Perro comunitario',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF1E5BB0),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (r.dogId != null)
+                        const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
                     ],
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
-            Text(
-                'Ubicación: ${r.lat.toStringAsFixed(5)}, ${r.lng.toStringAsFixed(5)}'),
-            if ((!user.isStaff &&
-                    user.uid == r.reporterId &&
-                    r.status == 'pendiente') ||
-                user.isStaff) ...[
-              const SizedBox(height: 12),
+
+            // Evidencia
+            const Text(
+              'Evidencia',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+            ),
+            const SizedBox(height: 10),
+            if (hasPhoto)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 180,
+                  child: reportPhoto(r),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.image_outlined, color: Color(0xFF94A3B8), size: 22),
+                    SizedBox(width: 10),
+                    Text(
+                      'Sin fotos adjuntas',
+                      style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 20),
+
+            // Detalles
+            const Text(
+              'Detalles',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  _detailRow(
+                    'Estado del perro',
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.circle, color: Color(0xFF10B981), size: 8),
+                        const SizedBox(width: 6),
+                        Text(
+                          r.dogStatus.isNotEmpty
+                              ? r.dogStatus.replaceAll('_', ' ').capitalize()
+                              : 'Con vida',
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF10B981)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 18, color: Color(0xFFF1F5F9)),
+                  _detailRow(
+                    'Tipo de incidencia',
+                    Text(
+                      r.incidentType.isNotEmpty ? r.incidentType.capitalize() : 'Otro',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F2B48)),
+                    ),
+                  ),
+                  const Divider(height: 18, color: Color(0xFFF1F5F9)),
+                  _detailRow(
+                    'Perro relacionado',
+                    Text(
+                      r.unidentified ? 'Sin identificar' : (r.dogName ?? 'Sin identificar'),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F2B48)),
+                    ),
+                  ),
+                  const Divider(height: 18, color: Color(0xFFF1F5F9)),
+                  _detailRow(
+                    'Fecha',
+                    Text(
+                      DateFormat('dd/MM · HH:mm').format(r.createdAt),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F2B48)),
+                    ),
+                  ),
+                  const Divider(height: 18, color: Color(0xFFF1F5F9)),
+                  _detailRow(
+                    'Reportado por',
+                    Text(
+                      r.reporterName.isNotEmpty ? r.reporterName : 'steve',
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F2B48)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Descripción
+            const Text(
+              'Descripción',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Text(
+                r.description.isNotEmpty ? r.description : 'Cachorros bajo una banca',
+                style: const TextStyle(fontSize: 13.5, color: Color(0xFF334155), height: 1.35),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Ubicación
+            const Text(
+              'Ubicación',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: 160,
+                      child: FlutterMap(
+                        options: MapOptions(
+                          initialCenter: latLng,
+                          initialZoom: 16.5,
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                            userAgentPackageName: 'ec.edu.espoch.pawtrack',
+                          ),
+                          CircleLayer(
+                            circles: [
+                              CircleMarker(
+                                point: latLng,
+                                radius: 32,
+                                color: const Color(0xFF1E5BB0).withOpacity(0.18),
+                                borderColor: const Color(0xFF1E5BB0),
+                                borderStrokeWidth: 1.5,
+                              ),
+                            ],
+                          ),
+                          MarkerLayer(
+                            markers: [
+                              Marker(
+                                point: latLng,
+                                width: 36,
+                                height: 36,
+                                child: const Icon(Icons.location_on, color: Color(0xFFF97316), size: 36),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0D3B73),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.location_on, color: Colors.white, size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Ubicación adjunta',
+                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: Color(0xFF0F2B48)),
+                                ),
+                                Text(
+                                  '${r.lat.toStringAsFixed(5)}, ${r.lng.toStringAsFixed(5)}',
+                                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Botón editar si está pendiente
+            if (isPending || user.isStaff) ...[
+              const SizedBox(height: 18),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF0D3B73),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
                 ),
                 onPressed: () {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(
-                        builder: (_) =>
-                            EditReportScreen(report: r, user: user)),
+                    MaterialPageRoute(builder: (_) => EditReportScreen(report: r, user: user)),
                   );
                 },
                 icon: const Icon(Icons.edit_outlined, size: 18),
-                label: const Text('Editar reporte'),
+                label: const Text('Editar reporte', style: TextStyle(fontWeight: FontWeight.w800)),
               ),
             ],
+
+            // Panel de gestión para personal
             if (user.isStaff) ...[
-              const Divider(height: 32),
+              const Divider(height: 36),
+              const Text('Gestión del personal', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              const SizedBox(height: 10),
               TextField(
                 controller: _noteController,
                 minLines: 2,
-                maxLines: 5,
-                maxLength: 500,
+                maxLines: 4,
                 decoration: const InputDecoration(
-                  labelText: 'Nota para el estudiante (opcional)',
-                  hintText: 'Comparte una actualización o información útil.',
+                  labelText: 'Nota de resolución / Acciones tomadas',
                   alignLabelWithHint: true,
-                  border: OutlineInputBorder(),
                 ),
               ),
+              const SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton.tonalIcon(
                   onPressed: _savingNote ? null : () => _saveNote(r),
-                  icon: _savingNote
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_outlined),
-                  label: const Text('Guardar nota'),
+                  icon: const Icon(Icons.save_outlined, size: 18),
+                  label: const Text('Guardar acciones'),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text('Cambiar estado'),
+              const SizedBox(height: 14),
+              const Text('Cambiar estado:'),
+              const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
                 children: [
@@ -453,38 +924,29 @@ class _ReportSheetState extends State<ReportSheet> {
                     ),
                 ],
               ),
-              if (r.unidentified) ...[
-                const SizedBox(height: 12),
-                const Text('Identificar perro'),
-                StreamBuilder<List<Dog>>(
-                  stream: DataService.dogs(),
-                  builder: (context, snap) => DropdownButton<Dog>(
-                    isExpanded: true,
-                    hint: const Text('Seleccionar perro registrado'),
-                    items: [
-                      for (final d in snap.data ?? <Dog>[])
-                        DropdownMenuItem(value: d, child: Text(d.name))
-                    ],
-                    onChanged: (d) async {
-                      if (d == null) return;
-                      await DataService.linkReportToDog(r.id, d);
-                      if (context.mounted) Navigator.pop(context);
-                    },
-                  ),
-                ),
-              ],
               const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: () => _deleteReport(r),
                 icon: const Icon(Icons.delete_outline),
                 label: const Text('Eliminar reporte'),
-                style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error),
+                style: OutlinedButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
               ),
             ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _detailRow(String label, Widget value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500)),
+        value,
+      ],
+    );
+  }
     );
   }
 }
