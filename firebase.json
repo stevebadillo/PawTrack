@@ -1,0 +1,30 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "pawtrack-espoch",
+          "appId": "1:118457420954:android:74e77015c465376e7d6323",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "pawtrack-espoch",
+          "configurations": {
+            "android": "1:118457420954:android:74e77015c465376e7d6323",
+            "ios": "1:118457420954:ios:59d6f4511d3b56f07d6323",
+            "web": "1:118457420954:web:48d4ad5ea8c0a1787d6323"
+          }
+        }
+      }
+    }
+  }
+}

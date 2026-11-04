@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    function isStaff() {
+      return signedIn() &&
+        get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.role == 'personal';
+    }
+
+    match /usuarios/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      allow create: if request.auth.uid == uid && (
+        request.resource.data.role == 'estudiante' || (
+          exists(/databases/$(db)/documents/users/$(uid)) &&
+          request.resource.data.role ==
+            get(/databases/$(db)/documents/users/$(uid)).data.role
+        )
+      );
+      allow update: if request.auth.uid == uid && request.resource.data.role == resource.data.role;
+    }
+
+    // Transitional source for profiles being moved from the old collection.
+    // The owner can read their own legacy record and remove it only after a
+    // Spanish profile exists. Client apps cannot create or edit legacy records.
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      allow create, update: if false;
+      allow delete: if signedIn() && request.auth.uid == uid &&
+        exists(/databases/$(db)/documents/usuarios/$(uid));
+    }
+
+    match /dogs/{dogId} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+      match /vaccines/{vId} {
+        allow read: if signedIn();
+        allow write: if isStaff();
+      }
+    }
+
+    match /reports/{rId} {
+      allow read: if isStaff() || (signedIn() && resource.data.reporterId == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.reporterId == request.auth.uid;
+      // Students may edit their own report while it is still pending.
+      allow update: if isStaff() || (
+        signedIn() &&
+        resource.data.reporterId == request.auth.uid &&
+        resource.data.status == 'pendiente' &&
+        request.resource.data.status == 'pendiente' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'description', 'descripcion', 'dogStatus', 'estadoPerro',
+          'incidentType', 'tipoIncidencia', 'photoBase64', 'photos',
+          'evidencias', 'photoUrl', 'lat', 'lng', 'dogId', 'dogName',
+          'perroId', 'perroNombre'
+        ])
+      );
+      allow delete: if isStaff();
+    }
+
+    match /contactos/{cId} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+    match /contacts/{cId} {
+      allow read: if signedIn();
+      allow write: if isStaff();
+    }
+    match /notificaciones/{nId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow write: if isStaff();
+    }
+    match /notifications/{nId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isStaff());
+      allow write: if isStaff();
+    }
+  }
+}
