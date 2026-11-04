@@ -29,7 +29,7 @@ service cloud.firestore {
         exists(/databases/$(db)/documents/usuarios/$(uid));
     }
 
-    match /dogs/{dogId} {
+    match /CANES/{dogId} {
       allow read: if signedIn();
       allow write: if isStaff();
       match /vaccines/{vId} {
