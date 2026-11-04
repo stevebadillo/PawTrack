@@ -44,7 +44,9 @@ App móvil para registro, seguimiento sanitario y reporte de incidencias de perr
 Para revisar la versión web en un teléfono conectado a la misma red Wi-Fi, ejecuta el servidor local incluido y abre desde el teléfono `http://<IP-LOCAL-DE-TU-PC>:5101`. Es solo para pruebas en una red de confianza; el servidor de desarrollo no debe exponerse a Internet.
 
 ## Usuario "personal"
-Regístrate (quedas como estudiante) y en Firestore → users → tu documento cambia `role` a `personal`.
+Regístrate (quedas como estudiante) y en Firestore → usuarios → tu documento cambia `role` a `personal`.
+
+Los perfiles se guardan en la colección `usuarios`. Firebase Authentication es independiente de Firestore: borrar el perfil bloquea el acceso a PawTrack, pero no elimina la cuenta de inicio de sesión. Para borrar también las credenciales, elimina la cuenta en Authentication → Users. Durante la transición, los perfiles antiguos de `users` se copian a `usuarios` al iniciar sesión; la colección antigua debe retirarse después de verificar la migración.
 
 ## Notificaciones (opcional, plan Blaze)
 ```

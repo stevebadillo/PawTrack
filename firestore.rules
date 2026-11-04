@@ -4,13 +4,29 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function isStaff() {
       return signedIn() &&
-        get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role == 'personal';
+        get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.role == 'personal';
     }
 
+    match /usuarios/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isStaff());
+      allow create: if request.auth.uid == uid && (
+        request.resource.data.role == 'estudiante' || (
+          exists(/databases/$(db)/documents/users/$(uid)) &&
+          request.resource.data.role ==
+            get(/databases/$(db)/documents/users/$(uid)).data.role
+        )
+      );
+      allow update: if request.auth.uid == uid && request.resource.data.role == resource.data.role;
+    }
+
+    // Transitional source for profiles being moved from the old collection.
+    // The owner can read their own legacy record and remove it only after a
+    // Spanish profile exists. Client apps cannot create or edit legacy records.
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isStaff());
-      allow create: if request.auth.uid == uid && request.resource.data.role == 'estudiante';
-      allow update: if request.auth.uid == uid && request.resource.data.role == resource.data.role;
+      allow create, update: if false;
+      allow delete: if signedIn() && request.auth.uid == uid &&
+        exists(/databases/$(db)/documents/usuarios/$(uid));
     }
 
     match /dogs/{dogId} {

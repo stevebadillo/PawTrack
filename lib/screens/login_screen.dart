@@ -35,6 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on FirebaseAuthException catch (e) {
       _showError(_firebaseMessage(e));
+    } on UserProfileMissingException catch (e) {
+      _showError(e.toString());
     } catch (_) {
       _showError(
           'No se pudo conectar. Revisa tu conexión e inténtalo otra vez.');
@@ -52,9 +54,11 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } on FirebaseAuthException catch (e) {
       _showError(_firebaseMessage(e));
+    } on UserProfileMissingException catch (e) {
+      _showError(e.toString());
     } catch (_) {
       _showError(
-          'No se pudo iniciar con Google. Verifica que Google esté habilitado en Firebase.');
+          'No se pudo completar el acceso con Google. Comprueba la conexión y las reglas de Firestore para la colección usuarios.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

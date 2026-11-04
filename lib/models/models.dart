@@ -23,6 +23,10 @@ class Dog {
   final String id, name, sex, color, description, photoUrl;
   final bool hasRedCollar;
   final DateTime createdAt;
+  final String age; // e.g. '3'
+  final String allergies; // e.g. 'Ninguna conocida'
+  final bool isSterilized;
+
   Dog({
     required this.id,
     required this.name,
@@ -32,6 +36,9 @@ class Dog {
     required this.photoUrl,
     required this.hasRedCollar,
     required this.createdAt,
+    this.age = '3',
+    this.allergies = 'Ninguna conocida',
+    this.isSterilized = true,
   });
 
   @override
@@ -43,13 +50,57 @@ class Dog {
     final m = d.data() as Map<String, dynamic>;
     return Dog(
       id: d.id,
-      name: m['name'] ?? '',
-      sex: m['sex'] ?? '',
+      name: m['name'] ?? m['nombre'] ?? '',
+      sex: m['sex'] ?? m['sexo'] ?? 'Macho',
       color: m['color'] ?? '',
-      description: m['description'] ?? '',
+      description: m['description'] ?? m['descripcion'] ?? '',
       photoUrl: m['photoUrl'] ?? '',
-      hasRedCollar: m['hasRedCollar'] ?? false,
+      hasRedCollar: m['hasRedCollar'] ?? m['collarRojo'] ?? false,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      age: m['age']?.toString() ?? m['edad']?.toString() ?? '3',
+      allergies: m['allergies'] ?? m['alergias'] ?? 'Ninguna conocida',
+      isSterilized: m['isSterilized'] ?? m['esterilizado'] ?? false,
+    );
+  }
+}
+
+class MedicalEntry {
+  final String id;
+  final String title;
+  final String description;
+  final DateTime date;
+  final String? vetOrClinic;
+  final String? diagnosis;
+  final String? treatment;
+  final DateTime? nextVisit;
+  final List<String> documents;
+
+  MedicalEntry({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.date,
+    this.vetOrClinic,
+    this.diagnosis,
+    this.treatment,
+    this.nextVisit,
+    this.documents = const [],
+  });
+
+  factory MedicalEntry.fromDoc(DocumentSnapshot d) {
+    final m = d.data() as Map<String, dynamic>? ?? {};
+    return MedicalEntry(
+      id: d.id,
+      title: m['title'] ?? m['titulo'] ?? 'Revisión médica',
+      description: m['description'] ?? m['descripcion'] ?? '',
+      date: (m['date'] as Timestamp?)?.toDate() ??
+          (m['fecha'] as Timestamp?)?.toDate() ??
+          DateTime.now(),
+      vetOrClinic: m['vetOrClinic'] ?? m['veterinario'],
+      diagnosis: m['diagnosis'] ?? m['diagnostico'],
+      treatment: m['treatment'] ?? m['tratamiento'],
+      nextVisit: (m['nextVisit'] as Timestamp?)?.toDate(),
+      documents: (m['documents'] as List?)?.map((e) => e.toString()).toList() ?? [],
     );
   }
 }

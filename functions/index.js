@@ -20,7 +20,7 @@ exports.onReportStatus = onDocumentUpdated('reports/{id}', async (event) => {
   const before = event.data.before.data();
   const after = event.data.after.data();
   if (before.status === after.status) return;
-  const user = await admin.firestore().doc(`users/${after.reporterId}`).get();
+  const user = await admin.firestore().doc(`usuarios/${after.reporterId}`).get();
   const token = user.get('fcmToken');
   if (!token) return;
   await admin.messaging().send({

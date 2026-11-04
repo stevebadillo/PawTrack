@@ -31,6 +31,22 @@ class DataService {
     return ref.id;
   }
 
+  static Future<void> updateDog(String id, Map<String, dynamic> data) async {
+    await _db.collection('dogs').doc(id).update(data);
+  }
+
+  static Stream<List<MedicalEntry>> medicalEntries(String dogId) => _db
+      .collection('dogs/$dogId/medical_entries')
+      .orderBy('date', descending: true)
+      .snapshots()
+      .map((s) => s.docs.map(MedicalEntry.fromDoc).toList());
+
+  static Future<void> addMedicalEntry(String dogId, Map<String, dynamic> data) =>
+      _db.collection('dogs/$dogId/medical_entries').add({
+        ...data,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
   /// Removes a dog and its vaccine subcollection while preserving old reports.
   static Future<void> deleteDog(Dog dog) async {
     final dogRef = _db.collection('dogs').doc(dog.id);

@@ -13,8 +13,10 @@ class NotificationService {
       final fcm = FirebaseMessaging.instance;
       await fcm.requestPermission();
       final token = await fcm.getToken();
-      final userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(uid)
+          .get();
       if (token != null) {
         await userDoc.reference
             .set({'fcmToken': token}, SetOptions(merge: true));

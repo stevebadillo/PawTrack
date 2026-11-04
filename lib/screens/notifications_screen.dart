@@ -47,30 +47,58 @@ class NotificationsScreen extends StatelessWidget {
                   if (items.isEmpty) {
                     for (final r in reports) {
                       final dogLabel = r.unidentified ? 'Perro sin identificar' : (r.dogName ?? 'Perro');
-                      if (r.status == 'resuelto') {
-                        items.add(_NotifData(
-                          title: 'Reporte resuelto',
-                          body: 'La atención de $dogLabel ha finalizado satisfactoriamente.',
-                          date: r.createdAt,
-                          icon: Icons.check_circle_outline,
-                          color: const Color(0xFF15803D),
-                        ));
-                      } else if (r.status == 'en_revision' || r.status == 'en_atencion') {
-                        items.add(_NotifData(
-                          title: 'Reporte en revisión',
-                          body: 'El personal está atendiendo la incidencia sobre $dogLabel.',
-                          date: r.createdAt,
-                          icon: Icons.sync,
-                          color: const Color(0xFFB45309),
-                        ));
+                      if (user.isStaff) {
+                        if (r.status == 'pendiente') {
+                          items.add(_NotifData(
+                            title: 'Nueva incidencia: $dogLabel',
+                            body: '${r.reporterName.isNotEmpty ? r.reporterName : "Estudiante"} reportó: "${r.description}"',
+                            date: r.createdAt,
+                            icon: Icons.warning_amber_rounded,
+                            color: const Color(0xFFDC2626),
+                          ));
+                        } else if (r.status == 'en_revision' || r.status == 'en_atencion') {
+                          items.add(_NotifData(
+                            title: 'Incidencia en revisión: $dogLabel',
+                            body: 'El personal está atendiendo el reporte en el campus.',
+                            date: r.createdAt,
+                            icon: Icons.access_time_rounded,
+                            color: const Color(0xFFB45309),
+                          ));
+                        } else {
+                          items.add(_NotifData(
+                            title: 'Incidencia atendida: $dogLabel',
+                            body: r.staffNote.isNotEmpty ? r.staffNote : 'Caso resuelto satisfactoriamente.',
+                            date: r.createdAt,
+                            icon: Icons.check_circle_outline,
+                            color: const Color(0xFF15803D),
+                          ));
+                        }
                       } else {
-                        items.add(_NotifData(
-                          title: 'Reporte registrado',
-                          body: 'Tu reporte de $dogLabel fue recibido correctamente.',
-                          date: r.createdAt,
-                          icon: Icons.assignment_outlined,
-                          color: const Color(0xFF1E5BB0),
-                        ));
+                        if (r.status == 'resuelto') {
+                          items.add(_NotifData(
+                            title: 'Reporte resuelto',
+                            body: 'La atención de $dogLabel ha finalizado satisfactoriamente.',
+                            date: r.createdAt,
+                            icon: Icons.check_circle_outline,
+                            color: const Color(0xFF15803D),
+                          ));
+                        } else if (r.status == 'en_revision' || r.status == 'en_atencion') {
+                          items.add(_NotifData(
+                            title: 'Reporte en revisión',
+                            body: 'El personal está atendiendo la incidencia sobre $dogLabel.',
+                            date: r.createdAt,
+                            icon: Icons.sync,
+                            color: const Color(0xFFB45309),
+                          ));
+                        } else {
+                          items.add(_NotifData(
+                            title: 'Reporte registrado',
+                            body: 'Tu reporte de $dogLabel fue recibido correctamente.',
+                            date: r.createdAt,
+                            icon: Icons.assignment_outlined,
+                            color: const Color(0xFF1E5BB0),
+                          ));
+                        }
                       }
                     }
                   }

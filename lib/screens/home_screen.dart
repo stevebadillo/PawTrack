@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
       stream: _user,
       builder: (context, snap) {
         if (snap.hasError) {
+          final missingProfile = snap.error is UserProfileMissingException;
           return Scaffold(
             body: Center(
               child: Padding(
@@ -43,8 +44,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Text('No pudimos cargar tu perfil',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                     const SizedBox(height: 8),
-                    const Text(
-                        'Comprueba tu conexión y vuelve a iniciar sesión.'),
+                    Text(missingProfile
+                        ? 'No encontramos tu perfil en usuarios ni en la colección anterior. Si fue eliminado por error, pídele al administrador que lo restaure.'
+                        : 'Comprueba tu conexión y vuelve a iniciar sesión.'),
                     const SizedBox(height: 16),
                     FilledButton.tonal(
                         onPressed: AuthService.logout,
@@ -80,7 +82,8 @@ class _HomeScreenState extends State<HomeScreen> {
             preferredSize: const Size.fromHeight(66),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 child: Builder(
                   builder: (scaffoldContext) {
                     return Row(
@@ -88,7 +91,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         // Left: Hamburger menu button -> Opens Drawer
                         InkWell(
-                          onTap: () => Scaffold.of(scaffoldContext).openDrawer(),
+                          onTap: () =>
+                              Scaffold.of(scaffoldContext).openDrawer(),
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             width: 44,
@@ -96,7 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border:
+                                  Border.all(color: const Color(0xFFE2E8F0)),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.03),
@@ -206,9 +211,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
-                  // Início
+                  // Inicio
                   _DrawerItem(
-                    title: 'Início',
+                    title: 'Inicio',
                     icon: Icons.home_rounded,
                     iconColor: const Color(0xFFF59E0B),
                     isActive: _tab == 0,

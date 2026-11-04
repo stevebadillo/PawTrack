@@ -9,8 +9,11 @@ class AuthService {
   static final _auth = FirebaseAuth.instance;
   static final _db = FirebaseFirestore.instance;
 
-  static Future<void> login(String email, String password) =>
-      _auth.signInWithEmailAndPassword(email: email, password: password);
+  static Future<void> login(String email, String password) async {
+    final credential = await _auth.signInWithEmailAndPassword(
+        email: email, password: password);
+    await _requireOrMigrateProfile(credential.user);
+  }
 
   static Future<UserCredential?> loginWithGoogle() async {
     late final UserCredential credential;
@@ -26,7 +29,11 @@ class AuthService {
       );
       credential = await _auth.signInWithCredential(oauth);
     }
-    await _ensureUserProfile(credential.user);
+    // Google access is also the registration path. If this Authentication
+    // account survived after its Firestore profile was removed, recreate a
+    // student profile so the selected Google account can enter again. Existing
+    // profiles (including legacy personal roles) are kept as they are.
+    await _requireOrMigrateProfile(credential.user, createIfNew: true);
     return credential;
   }
 
@@ -39,7 +46,7 @@ class AuthService {
       String name, String email, String password) async {
     final cred = await _auth.createUserWithEmailAndPassword(
         email: email, password: password);
-    await _db.collection('users').doc(cred.user!.uid).set({
+    await _db.collection('usuarios').doc(cred.user!.uid).set({
       'name': name,
       'email': email,
       'role': 'estudiante',
@@ -47,24 +54,61 @@ class AuthService {
     });
   }
 
-  static Future<void> _ensureUserProfile(User? user) async {
+  /// Uses Spanish collection names. A legacy profile is moved on its owner's
+  /// next sign-in so existing roles survive the collection rename.
+  static Future<void> _requireOrMigrateProfile(User? user,
+      {bool createIfNew = false}) async {
     if (user == null) return;
-    final ref = _db.collection('users').doc(user.uid);
+    final ref = _db.collection('usuarios').doc(user.uid);
     final snapshot = await ref.get();
-    if (!snapshot.exists) {
+    if (snapshot.exists) return;
+
+    final legacyRef = _db.collection('users').doc(user.uid);
+    final legacy = await legacyRef.get();
+    if (legacy.exists) {
+      await ref.set(legacy.data()!);
+      return;
+    }
+
+    if (createIfNew) {
       await ref.set({
         'name': user.displayName ?? user.email?.split('@').first ?? 'Usuario',
         'email': user.email ?? '',
         'role': 'estudiante',
         'createdAt': FieldValue.serverTimestamp(),
       });
+      return;
     }
+
+    await _auth.signOut();
+    throw const UserProfileMissingException();
   }
 
   static Future<void> logout() => _auth.signOut();
 
-  static Stream<AppUser> currentUser() {
-    final uid = _auth.currentUser!.uid;
-    return _db.collection('users').doc(uid).snapshots().map(AppUser.fromDoc);
+  static Stream<AppUser> currentUser() async* {
+    final user = _auth.currentUser;
+    if (user == null) throw const UserProfileMissingException();
+    // Also migrates the current session, so users do not need to sign out just
+    // because this app switched from the old collection name.
+    // Firebase emits authStateChanges before the Google popup handler finishes
+    // writing its Firestore profile. Provision here too to avoid racing that
+    // write and signing the user straight back out.
+    final signedInWithGoogle = user.providerData
+        .any((provider) => provider.providerId == 'google.com');
+    await _requireOrMigrateProfile(user, createIfNew: signedInWithGoogle);
+    await for (final snapshot
+        in _db.collection('usuarios').doc(user.uid).snapshots()) {
+      if (!snapshot.exists) throw const UserProfileMissingException();
+      yield AppUser.fromDoc(snapshot);
+    }
   }
+}
+
+class UserProfileMissingException implements Exception {
+  const UserProfileMissingException();
+
+  @override
+  String toString() =>
+      'Esta cuenta existe en Firebase Authentication, pero no tiene un perfil en Firestore. Se bloqueó el acceso a PawTrack. Si eliminaste el perfil por error, un administrador debe restaurarlo en usuarios.';
 }
