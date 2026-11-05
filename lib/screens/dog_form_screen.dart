@@ -23,6 +23,17 @@ class _DogFormScreenState extends State<DogFormScreen> {
   final _desc = TextEditingController();
   final _age = TextEditingController(text: '3');
   final _allergies = TextEditingController(text: 'Ninguna conocida');
+  final _initialMedical = TextEditingController();
+  final _initialVaccineNotes = TextEditingController();
+  static const _vaccineTypes = [
+    'Rabia',
+    'Parvovirus',
+    'Desparasitación',
+    'Moquillo',
+    'Polivalente (Séxtuple)',
+    'Otro tratamiento',
+  ];
+  String? _initialVaccine;
   String _sex = 'Macho';
   bool _collar = false, _sterilized = false, _saving = false;
   double _uploadProgress = 0;
@@ -51,6 +62,8 @@ class _DogFormScreenState extends State<DogFormScreen> {
     _desc.dispose();
     _age.dispose();
     _allergies.dispose();
+    _initialMedical.dispose();
+    _initialVaccineNotes.dispose();
     super.dispose();
   }
 
@@ -113,7 +126,26 @@ class _DogFormScreenState extends State<DogFormScreen> {
       };
       String dogId;
       if (widget.dog == null) {
-        dogId = await DataService.addDog(data);
+        final medicalText = _initialMedical.text.trim();
+        dogId = await DataService.addDog(
+          data,
+          initialMedicalEntry: medicalText.isEmpty
+              ? null
+              : {
+                  'title': 'Historial médico inicial',
+                  'description': medicalText,
+                  'date': Timestamp.fromDate(DateTime.now()),
+                  'createdAt': FieldValue.serverTimestamp(),
+                },
+          initialVaccine: _initialVaccine == null
+              ? null
+              : {
+                  'name': _initialVaccine,
+                  'appliedAt': Timestamp.fromDate(DateTime.now()),
+                  'nextDate': null,
+                  'notes': _initialVaccineNotes.text.trim(),
+                },
+        );
       } else {
         await DataService.updateDog(widget.dog!.id, data);
         dogId = widget.dog!.id;
@@ -332,6 +364,58 @@ class _DogFormScreenState extends State<DogFormScreen> {
                     : (value) => setState(() => _sterilized = value),
               ),
             ),
+            if (widget.dog == null) ...[
+              const SizedBox(height: 12),
+              ExpansionTile(
+                initiallyExpanded: true,
+                tilePadding: const EdgeInsets.symmetric(horizontal: 4),
+                title: const Text('Historial médico y vacunas (opcional)'),
+                childrenPadding: const EdgeInsets.only(bottom: 8),
+                children: [
+                  TextFormField(
+                    controller: _initialMedical,
+                    enabled: !_saving,
+                    maxLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Historial médico inicial',
+                      alignLabelWithHint: true,
+                      prefixIcon: Icon(Icons.medical_services_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _initialVaccine,
+                    decoration: const InputDecoration(
+                      labelText: 'Vacuna aplicada',
+                      prefixIcon: Icon(Icons.vaccines_outlined),
+                    ),
+                    hint: const Text('Selecciona una vacuna (opcional)'),
+                    items: _vaccineTypes
+                        .map((name) => DropdownMenuItem(
+                              value: name,
+                              child: Text(name),
+                            ))
+                        .toList(),
+                    onChanged: _saving
+                        ? null
+                        : (value) => setState(() => _initialVaccine = value),
+                  ),
+                  if (_initialVaccine != null) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _initialVaccineNotes,
+                      enabled: !_saving,
+                      textCapitalization: TextCapitalization.sentences,
+                      decoration: const InputDecoration(
+                        labelText: 'Notas de la vacuna',
+                        prefixIcon: Icon(Icons.notes_outlined),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ],
             const SizedBox(height: 8),
             const SizedBox(height: 20),
             FilledButton.icon(
