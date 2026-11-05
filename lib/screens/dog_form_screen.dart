@@ -5,13 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
-import 'medical_entry_screen.dart';
-import 'vaccine_form_screen.dart';
+import 'dog_detail_screen.dart';
 
 /// Registro de perros (RF04) - solo personal.
 class DogFormScreen extends StatefulWidget {
+  final AppUser user;
   final Dog? dog;
-  const DogFormScreen({super.key, this.dog});
+  const DogFormScreen({super.key, required this.user, this.dog});
   @override
   State<DogFormScreen> createState() => _DogFormScreenState();
 }
@@ -23,25 +23,6 @@ class _DogFormScreenState extends State<DogFormScreen> {
   final _desc = TextEditingController();
   final _age = TextEditingController(text: '3');
   final _allergies = TextEditingController(text: 'Ninguna conocida');
-  final _medicalTitle = TextEditingController(text: 'Registro inicial');
-  final _medicalDescription = TextEditingController();
-  final _medicalVet = TextEditingController();
-  final _medicalDiagnosis = TextEditingController();
-  final _medicalTreatment = TextEditingController();
-  final _vaccineNotes = TextEditingController();
-  static const _vaccineTypes = [
-    'Rabia',
-    'Parvovirus',
-    'Desparasitación',
-    'Moquillo',
-    'Polivalente (Séxtuple)',
-    'Otro tratamiento',
-  ];
-  String? _vaccineName;
-  DateTime _medicalDate = DateTime.now();
-  DateTime? _medicalNextVisit;
-  DateTime _vaccineDate = DateTime.now();
-  DateTime? _vaccineNextDate;
   String _sex = 'Macho';
   bool _collar = false, _sterilized = false, _saving = false;
   double _uploadProgress = 0;
@@ -70,12 +51,6 @@ class _DogFormScreenState extends State<DogFormScreen> {
     _desc.dispose();
     _age.dispose();
     _allergies.dispose();
-    _medicalTitle.dispose();
-    _medicalDescription.dispose();
-    _medicalVet.dispose();
-    _medicalDiagnosis.dispose();
-    _medicalTreatment.dispose();
-    _vaccineNotes.dispose();
     super.dispose();
   }
 
@@ -112,35 +87,6 @@ class _DogFormScreenState extends State<DogFormScreen> {
     }
   }
 
-  Future<void> _pickDate(
-      {required bool forVaccine, bool nextVisit = false}) async {
-    final current = forVaccine
-        ? (nextVisit ? _vaccineNextDate ?? _vaccineDate : _vaccineDate)
-        : (nextVisit ? _medicalNextVisit ?? _medicalDate : _medicalDate);
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: current,
-      firstDate: DateTime(2020),
-      lastDate: nextVisit
-          ? DateTime.now().add(const Duration(days: 365 * 3))
-          : DateTime.now(),
-    );
-    if (selected == null || !mounted) return;
-    setState(() {
-      if (forVaccine) {
-        if (nextVisit) {
-          _vaccineNextDate = selected;
-        } else {
-          _vaccineDate = selected;
-        }
-      } else if (nextVisit) {
-        _medicalNextVisit = selected;
-      } else {
-        _medicalDate = selected;
-      }
-    });
-  }
-
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -165,38 +111,12 @@ class _DogFormScreenState extends State<DogFormScreen> {
         'allergies': _allergies.text.trim(),
         'isSterilized': _sterilized,
       };
+      String dogId;
       if (widget.dog == null) {
-        await DataService.addDog(
-          data,
-          initialMedicalEntry: _medicalDescription.text.trim().isEmpty
-              ? null
-              : {
-                  'title': _medicalTitle.text.trim().isEmpty
-                      ? 'Registro inicial'
-                      : _medicalTitle.text.trim(),
-                  'description': _medicalDescription.text.trim(),
-                  'date': Timestamp.fromDate(_medicalDate),
-                  'vetOrClinic': _medicalVet.text.trim(),
-                  'diagnosis': _medicalDiagnosis.text.trim(),
-                  'treatment': _medicalTreatment.text.trim(),
-                  'nextVisit': _medicalNextVisit == null
-                      ? null
-                      : Timestamp.fromDate(_medicalNextVisit!),
-                  'createdAt': FieldValue.serverTimestamp(),
-                },
-          initialVaccine: _vaccineName == null
-              ? null
-              : {
-                  'name': _vaccineName!,
-                  'appliedAt': Timestamp.fromDate(_vaccineDate),
-                  'nextDate': _vaccineNextDate == null
-                      ? null
-                      : Timestamp.fromDate(_vaccineNextDate!),
-                  'notes': _vaccineNotes.text.trim(),
-                },
-        );
+        dogId = await DataService.addDog(data);
       } else {
         await DataService.updateDog(widget.dog!.id, data);
+        dogId = widget.dog!.id;
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -206,7 +126,16 @@ class _DogFormScreenState extends State<DogFormScreen> {
                 : 'Cambios guardados.'),
           ),
         );
-        Navigator.pop(context);
+        if (widget.dog == null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DogDetailScreen(dogId: dogId, user: widget.user),
+            ),
+          );
+        } else {
+          Navigator.pop(context);
+        }
       }
     } catch (error) {
       if (mounted) {
@@ -231,242 +160,6 @@ class _DogFormScreenState extends State<DogFormScreen> {
         setState(() => _saving = false);
       }
     }
-  }
-
-  Widget _healthModules(BuildContext context, ColorScheme colors) {
-    final existingDog = widget.dog;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _moduleCard(
-          colors: colors,
-          icon: Icons.medical_services_outlined,
-          title: 'Historial médico',
-          subtitle: existingDog == null
-              ? 'Registra una consulta inicial (opcional).'
-              : 'Consultas, diagnósticos y tratamientos.',
-          children: existingDog == null
-              ? [
-                  TextFormField(
-                    controller: _medicalTitle,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Título de la consulta',
-                      prefixIcon: Icon(Icons.edit_note_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _dateSelector(
-                    context,
-                    label: 'Fecha de consulta',
-                    date: _medicalDate,
-                    onTap: () => _pickDate(forVaccine: false),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _medicalVet,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Veterinario o clínica',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _medicalDescription,
-                    maxLines: 3,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Descripción',
-                      hintText: 'Síntomas, consulta u observaciones',
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _medicalDiagnosis,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(labelText: 'Diagnóstico'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _medicalTreatment,
-                    maxLines: 2,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Tratamiento',
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _dateSelector(
-                    context,
-                    label: 'Próxima visita (opcional)',
-                    date: _medicalNextVisit,
-                    emptyLabel: 'Sin fecha programada',
-                    onTap: () => _pickDate(
-                      forVaccine: false,
-                      nextVisit: true,
-                    ),
-                  ),
-                ]
-              : [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MedicalEntryScreen(dog: existingDog),
-                        ),
-                      ),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Añadir al historial médico'),
-                    ),
-                  ),
-                ],
-        ),
-        const SizedBox(height: 14),
-        _moduleCard(
-          colors: colors,
-          icon: Icons.vaccines_outlined,
-          title: 'Vacunas aplicadas',
-          subtitle: existingDog == null
-              ? 'Registra una vacuna aplicada (opcional).'
-              : 'Dosis aplicadas y próximas fechas.',
-          children: existingDog == null
-              ? [
-                  DropdownButtonFormField<String>(
-                    initialValue: _vaccineName,
-                    decoration: const InputDecoration(
-                      labelText: 'Vacuna aplicada (opcional)',
-                      prefixIcon: Icon(Icons.vaccines_outlined),
-                    ),
-                    hint: const Text('Selecciona una vacuna'),
-                    items: _vaccineTypes
-                        .map((name) => DropdownMenuItem(
-                              value: name,
-                              child: Text(name),
-                            ))
-                        .toList(),
-                    onChanged: _saving
-                        ? null
-                        : (value) => setState(() => _vaccineName = value),
-                  ),
-                  const SizedBox(height: 10),
-                  _dateSelector(
-                    context,
-                    label: 'Fecha de aplicación',
-                    date: _vaccineDate,
-                    onTap: () => _pickDate(forVaccine: true),
-                  ),
-                  const SizedBox(height: 10),
-                  _dateSelector(
-                    context,
-                    label: 'Próxima dosis (opcional)',
-                    date: _vaccineNextDate,
-                    emptyLabel: 'Sin fecha programada',
-                    onTap: () => _pickDate(
-                      forVaccine: true,
-                      nextVisit: true,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextFormField(
-                    controller: _vaccineNotes,
-                    maxLines: 2,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Notas (opcional)',
-                      hintText: 'Lote, veterinario o reacciones',
-                      alignLabelWithHint: true,
-                    ),
-                  ),
-                ]
-              : [
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => VaccineFormScreen(dog: existingDog),
-                        ),
-                      ),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Añadir vacuna'),
-                    ),
-                  ),
-                ],
-        ),
-      ],
-    );
-  }
-
-  Widget _moduleCard({
-    required ColorScheme colors,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required List<Widget> children,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: colors.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 2),
-                    Text(subtitle,
-                        style: TextStyle(
-                            fontSize: 12, color: colors.onSurfaceVariant)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _dateSelector(
-    BuildContext context, {
-    required String label,
-    required DateTime? date,
-    required VoidCallback onTap,
-    String emptyLabel = 'Selecciona una fecha',
-  }) {
-    final formatted = date == null
-        ? emptyLabel
-        : MaterialLocalizations.of(context).formatMediumDate(date);
-    return InkWell(
-      onTap: _saving ? null : onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: const Icon(Icons.calendar_today_outlined),
-        ),
-        child: Text(formatted),
-      ),
-    );
   }
 
   @override
@@ -640,8 +333,6 @@ class _DogFormScreenState extends State<DogFormScreen> {
               ),
             ),
             const SizedBox(height: 8),
-            const SizedBox(height: 12),
-            _healthModules(context, colors),
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: _saving ? null : _save,

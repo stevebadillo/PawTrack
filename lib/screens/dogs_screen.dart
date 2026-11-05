@@ -120,9 +120,11 @@ class _DogsScreenState extends State<DogsScreen> {
                 if (widget.user.isStaff)
                   FilledButton.tonalIcon(
                     onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const DogFormScreen())),
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DogFormScreen(user: widget.user),
+                      ),
+                    ),
                     icon: const Icon(Icons.add),
                     label: const Text('Añadir'),
                   ),
@@ -162,9 +164,11 @@ class _DogsScreenState extends State<DogsScreen> {
                   action: widget.user.isStaff
                       ? FilledButton.icon(
                           onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const DogFormScreen())),
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DogFormScreen(user: widget.user),
+                            ),
+                          ),
                           icon: const Icon(Icons.add),
                           label: const Text('Registrar primer perro'),
                         )
