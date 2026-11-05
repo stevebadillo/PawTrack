@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'services/notification_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 
 // ============================================================================
 // PUNTO DE ENTRADA PRINCIPAL DE LA APLICACIÓN
@@ -96,23 +97,24 @@ class PawTrackApp extends StatelessWidget {
         dividerColor: const Color(0xFFD0DBF5),
         useMaterial3: true,
       ),
-
       // ----------------------------------------------------------------------
       // CONTROL DE SESIÓN EN TIEMPO REAL
       // Si el usuario no ha iniciado sesión muestra LoginScreen; si ya tiene
       // sesión activa, inicializa notificaciones y abre HomeScreen.
       // ----------------------------------------------------------------------
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-                body: Center(child: CircularProgressIndicator()));
-          }
-          if (snap.data == null) return const LoginScreen();
-          NotificationService.init(snap.data!.uid);
-          return const HomeScreen();
-        },
+      home: SplashScreen(
+        child: StreamBuilder<User?>(
+          stream: FirebaseAuth.instance.authStateChanges(),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()));
+            }
+            if (snap.data == null) return const LoginScreen();
+            NotificationService.init(snap.data!.uid);
+            return const HomeScreen();
+          },
+        ),
       ),
     );
   }
