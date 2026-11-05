@@ -4,6 +4,7 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function isStaff() {
       return signedIn() &&
+        exists(/databases/$(db)/documents/usuarios/$(request.auth.uid)) &&
         get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data.role == 'personal';
     }
 
@@ -29,16 +30,20 @@ service cloud.firestore {
         exists(/databases/$(db)/documents/usuarios/$(uid));
     }
 
-    match /dogs/{dogId} {
+    match /canes/{dogId} {
       allow read: if signedIn();
       allow write: if isStaff();
-      match /vaccines/{vId} {
+      match /vacunas/{vId} {
+        allow read: if signedIn();
+        allow write: if isStaff();
+      }
+      match /registros_medicos/{entryId} {
         allow read: if signedIn();
         allow write: if isStaff();
       }
     }
 
-    match /reports/{rId} {
+    match /reportes/{rId} {
       allow read: if isStaff() || (signedIn() && resource.data.reporterId == request.auth.uid);
       allow create: if signedIn() && request.resource.data.reporterId == request.auth.uid;
       // Students may edit their own report while it is still pending.

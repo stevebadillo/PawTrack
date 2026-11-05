@@ -5,6 +5,8 @@ import '../services/data_service.dart';
 import 'contacts_screen.dart';
 import 'reports_screen.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class DashboardScreen extends StatelessWidget {
   final AppUser user;
   final ValueChanged<int> onOpenTab;
@@ -49,6 +51,11 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 18),
 
             // Hero Card: "Reporta una incidencia"
+            if (user.isStaff)
+              _StaffSummaryBanner(reportCount: reports.length),
+
+            if (!user.isStaff)
+
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(24),
@@ -59,7 +66,7 @@ class DashboardScreen extends StatelessWidget {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0D3B73).withOpacity(0.25),
+                    color: const Color(0xFF0D3B73).withValues(alpha: 0.25),
                     blurRadius: 18,
                     offset: const Offset(0, 8),
                   ),
@@ -97,10 +104,10 @@ class DashboardScreen extends StatelessWidget {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.22),
+                                    color: Colors.white.withValues(alpha: 0.22),
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                       width: 1,
                                     ),
                                   ),
@@ -301,6 +308,154 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
+
+class _StaffSummaryBanner extends StatelessWidget {
+  final int reportCount;
+
+  const _StaffSummaryBanner({
+    required this.reportCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF0D3B73),
+            Color(0xFF144788),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D3B73).withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: StreamBuilder<List<Dog>>(
+        stream: DataService.dogs(),
+        builder: (context, dogsSnapshot) {
+          final dogCount = dogsSnapshot.hasData
+              ? dogsSnapshot.data!.length.toString()
+              : '--';
+
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('usuarios')
+                .where('role', isEqualTo: 'estudiante')
+                .snapshots(),
+            builder: (context, studentsSnapshot) {
+              final studentCount = studentsSnapshot.hasData
+                  ? studentsSnapshot.data!.docs.length.toString()
+                  : '--';
+
+              return Row(
+                children: [
+                  Expanded(
+                    child: _SummaryMetric(
+                      icon: Icons.assignment_rounded,
+                      count: reportCount.toString(),
+                      label: 'Reportes',
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _SummaryMetric(
+                      icon: Icons.pets_rounded,
+                      count: dogCount,
+                      label: 'Caninos',
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _SummaryMetric(
+                      icon: Icons.school_rounded,
+                      count: studentCount,
+                      label: 'Estudiantes',
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SummaryMetric extends StatelessWidget {
+  final IconData icon;
+  final String count;
+  final String label;
+
+  const _SummaryMetric({
+    required this.icon,
+    required this.count,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 14,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: Colors.white,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    count,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
 class _ReportRowItem extends StatelessWidget {
   final Report report;
   final VoidCallback onTap;
@@ -440,7 +595,7 @@ class _QuickCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -512,7 +667,7 @@ class _MapBackgroundPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final campusPaint = Paint()
-      ..color = const Color(0xFFEDF8ED).withOpacity(0.8)
+      ..color = const Color(0xFFEDF8ED).withValues(alpha: 0.8)
       ..style = PaintingStyle.fill;
 
     // Green zone at the bottom-right
@@ -604,7 +759,7 @@ class _HeroRipplePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.08)
+      ..color = Colors.white.withValues(alpha: 0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
 
