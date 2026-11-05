@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -8,50 +9,102 @@ class DataService {
   static final _db = FirebaseFirestore.instance;
   static final _storage = FirebaseStorage.instance;
 
-  static Future<String> uploadPhoto(Uint8List bytes, String folder) async {
+  // Nombres de colecciones de PawTrack (un solo lugar para cambiarlos).
+  // Deben coincidir con los de firestore.rules.
+  static const dogCollection = 'canes';
+  static const medicalCollection = 'registros_medicos';
+  static const vaccineCollection = 'vacunas';
+  static const reportCollection = 'reportes';
+
+  static Future<String> uploadPhoto(
+    Uint8List bytes,
+    String folder, {
+    void Function(double progress)? onProgress,
+  }) async {
+    if (bytes.isEmpty) throw ArgumentError('La imagen está vacía.');
+    if (bytes.length >= 5 * 1024 * 1024) {
+      throw ArgumentError('La imagen debe pesar menos de 5 MB.');
+    }
     final ref =
         _storage.ref('$folder/${DateTime.now().millisecondsSinceEpoch}.jpg');
-    await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-    return ref.getDownloadURL();
+    final task = ref.putData(
+      bytes,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+    final progressSubscription = task.snapshotEvents.listen((snapshot) {
+      if (snapshot.totalBytes > 0) {
+        onProgress?.call(snapshot.bytesTransferred / snapshot.totalBytes);
+      }
+    });
+    try {
+      try {
+        await task.timeout(const Duration(seconds: 90));
+      } on TimeoutException {
+        await task.cancel();
+        throw TimeoutException(
+          'La carga tardó demasiado. Revisa Firebase Storage y la conexión.',
+        );
+      }
+      return await ref.getDownloadURL().timeout(const Duration(seconds: 20));
+    } finally {
+      await progressSubscription.cancel();
+    }
   }
 
   static Stream<List<Dog>> dogs() => _db
-      .collection('canes')
+      .collection(dogCollection)
       .orderBy('name')
       .snapshots()
       .map((s) => s.docs.map(Dog.fromDoc).toList());
 
   static Stream<Dog> dog(String id) =>
-      _db.collection('canes').doc(id).snapshots().map(Dog.fromDoc);
+      _db.collection(dogCollection).doc(id).snapshots().map(Dog.fromDoc);
 
-  static Future<String> addDog(Map<String, dynamic> data) async {
-    final ref = await _db
-        .collection('canes')
-        .add({...data, 'createdAt': FieldValue.serverTimestamp()});
+  /// Crea el perro y, opcionalmente, su primer registro médico y su primera
+  /// vacuna en una sola operación atómica.
+  static Future<String> addDog(
+    Map<String, dynamic> data, {
+    Map<String, dynamic>? initialMedicalEntry,
+    Map<String, dynamic>? initialVaccine,
+  }) async {
+    final ref = _db.collection(dogCollection).doc();
+    final batch = _db.batch()
+      ..set(ref, {...data, 'createdAt': FieldValue.serverTimestamp()});
+    if (initialMedicalEntry != null) {
+      batch.set(ref.collection(medicalCollection).doc(), initialMedicalEntry);
+    }
+    if (initialVaccine != null) {
+      batch.set(ref.collection(vaccineCollection).doc(), initialVaccine);
+    }
+    await batch.commit();
     return ref.id;
   }
 
   static Future<void> updateDog(String id, Map<String, dynamic> data) async {
-    await _db.collection('canes').doc(id).update(data);
+    await _db.collection(dogCollection).doc(id).update(data);
   }
 
   static Stream<List<MedicalEntry>> medicalEntries(String dogId) => _db
-      .collection('canes/$dogId/registros_medicos')
+      .collection('$dogCollection/$dogId/$medicalCollection')
       .orderBy('date', descending: true)
       .snapshots()
       .map((s) => s.docs.map(MedicalEntry.fromDoc).toList());
 
-  static Future<void> addMedicalEntry(String dogId, Map<String, dynamic> data) =>
-      _db.collection('canes/$dogId/registros_medicos').add({
+  static Future<void> addMedicalEntry(
+          String dogId, Map<String, dynamic> data) =>
+      _db.collection('$dogCollection/$dogId/$medicalCollection').add({
         ...data,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-  /// Removes a dog and its vaccine subcollection while preserving old reports.
+  /// Elimina un perro con sus vacunas y su historial médico,
+  /// conservando los reportes antiguos.
   static Future<void> deleteDog(Dog dog) async {
-    final dogRef = _db.collection('canes').doc(dog.id);
-    final reports =
-        await _db.collection('reportes').where('dogId', isEqualTo: dog.id).get();
+    final dogRef = _db.collection(dogCollection).doc(dog.id);
+    final reports = await _db
+        .collection(reportCollection)
+        .where('dogId', isEqualTo: dog.id)
+        .get();
     for (var start = 0; start < reports.docs.length; start += 450) {
       final batch = _db.batch();
       for (final report in reports.docs.skip(start).take(450)) {
@@ -64,13 +117,15 @@ class DataService {
       await batch.commit();
     }
 
-    final vaccines = await dogRef.collection('vacunas').get();
-    for (var start = 0; start < vaccines.docs.length; start += 450) {
-      final batch = _db.batch();
-      for (final vaccine in vaccines.docs.skip(start).take(450)) {
-        batch.delete(vaccine.reference);
+    for (final subcollection in [vaccineCollection, medicalCollection]) {
+      final records = await dogRef.collection(subcollection).get();
+      for (var start = 0; start < records.docs.length; start += 450) {
+        final batch = _db.batch();
+        for (final record in records.docs.skip(start).take(450)) {
+          batch.delete(record.reference);
+        }
+        await batch.commit();
       }
-      await batch.commit();
     }
 
     await dogRef.delete();
@@ -84,14 +139,14 @@ class DataService {
   }
 
   static Stream<List<Vaccine>> vaccines(String dogId) => _db
-      .collection('canes/$dogId/vacunas')
+      .collection('$dogCollection/$dogId/$vaccineCollection')
       .orderBy('appliedAt', descending: true)
       .snapshots()
       .map((s) => s.docs.map(Vaccine.fromDoc).toList());
 
   static Future<void> addVaccine(String dogId, String name, DateTime applied,
           DateTime? next, String notes) =>
-      _db.collection('canes/$dogId/vacunas').add({
+      _db.collection('$dogCollection/$dogId/$vaccineCollection').add({
         'name': name,
         'appliedAt': Timestamp.fromDate(applied),
         'nextDate': next == null ? null : Timestamp.fromDate(next),
@@ -99,7 +154,7 @@ class DataService {
       });
 
   static Stream<List<Report>> reports({String? reporterId}) {
-    Query q = _db.collection('reportes');
+    Query q = _db.collection(reportCollection);
     if (reporterId != null) {
       // Avoid requiring a composite index for the common student view.
       q = q.where('reporterId', isEqualTo: reporterId);
@@ -116,30 +171,33 @@ class DataService {
   }
 
   static Future<void> addReport(Map<String, dynamic> data) =>
-      _db.collection('reportes').add({
+      _db.collection(reportCollection).add({
         ...data,
         'status': 'pendiente',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
   static Future<void> updateReportStatus(String id, String status) =>
-      _db.collection('reportes').doc(id).update({'status': status});
+      _db.collection(reportCollection).doc(id).update({'status': status});
 
   static Future<void> updateReportDescription(String id, String description) =>
-      _db.collection('reportes').doc(id).update({'description': description});
+      _db
+          .collection(reportCollection)
+          .doc(id)
+          .update({'description': description});
 
   static Future<void> updateReportStaffNote(String id, String note) =>
-      _db.collection('reportes').doc(id).update({'staffNote': note});
+      _db.collection(reportCollection).doc(id).update({'staffNote': note});
 
   static Future<void> updateReportFull(String id, Map<String, dynamic> data) =>
-      _db.collection('reportes').doc(id).update(data);
+      _db.collection(reportCollection).doc(id).update(data);
 
   static Future<void> deleteReport(String id) =>
-      _db.collection('reportes').doc(id).delete();
+      _db.collection(reportCollection).doc(id).delete();
 
   /// Identificación posterior de un perro reportado como no identificado.
   static Future<void> linkReportToDog(String reportId, Dog dog) => _db
-      .collection('reportes')
+      .collection(reportCollection)
       .doc(reportId)
       .update({'dogId': dog.id, 'dogName': dog.name});
 
@@ -164,7 +222,8 @@ class DataService {
       role: 'Seguridad y Vigilancia Campus Central',
       phone: '032998200',
       email: 'seguridad@espoch.edu.ec',
-      description: 'Atención 24/7 para emergencias o perros en riesgo dentro del campus.',
+      description:
+          'Atención 24/7 para emergencias o perros en riesgo dentro del campus.',
     ),
     Contact(
       id: 'c2',
@@ -172,7 +231,8 @@ class DataService {
       role: 'Facultad de Ciencias Pecuarias',
       phone: '0991234567',
       email: 'clinica.veterinaria@espoch.edu.ec',
-      description: 'Atención médica canina, cirugías y vacunas para perros de la comunidad.',
+      description:
+          'Atención médica canina, cirugías y vacunas para perros de la comunidad.',
     ),
     Contact(
       id: 'c3',
@@ -180,7 +240,8 @@ class DataService {
       role: 'Bienestar Universitario y Voluntariado',
       phone: '0987654321',
       email: 'bienestar@espoch.edu.ec',
-      description: 'Coordinación del programa de protección animal y voluntariado PawTrack.',
+      description:
+          'Coordinación del programa de protección animal y voluntariado PawTrack.',
     ),
     Contact(
       id: 'c4',
@@ -188,7 +249,8 @@ class DataService {
       role: 'Colectivo Estudiantil de Rescate',
       phone: '0961122334',
       email: 'patitas.espoch@gmail.com',
-      description: 'Hogares temporales, alimentación y adopciones de perros comunitarios.',
+      description:
+          'Hogares temporales, alimentación y adopciones de perros comunitarios.',
     ),
   ];
 
@@ -204,7 +266,10 @@ class DataService {
         list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         return list;
       }
-      final alt = await _db.collection('notificaciones').where('userId', isEqualTo: userId).get();
+      final alt = await _db
+          .collection('notificaciones')
+          .where('userId', isEqualTo: userId)
+          .get();
       if (alt.docs.isNotEmpty) {
         final list = alt.docs.map(AppNotificationItem.fromDoc).toList();
         list.sort((a, b) => b.createdAt.compareTo(a.createdAt));

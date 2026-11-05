@@ -6,13 +6,24 @@ import 'firebase_options.dart';
 import 'services/notification_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 
+// ============================================================================
+// PUNTO DE ENTRADA PRINCIPAL DE LA APLICACIÓN
+// Inicializa los servicios de Flutter y conecta la app con Firebase antes
+// de lanzar la interfaz gráfica principal (PawTrackApp).
+// ============================================================================
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const PawTrackApp());
 }
 
+// ============================================================================
+// WIDGET RAÍZ DE PAWTRACK
+// Configura el tema visual global (colores, campos de texto, tarjetas, barra
+// de navegación) y escucha el estado de autenticación del usuario.
+// ============================================================================
 class PawTrackApp extends StatelessWidget {
   const PawTrackApp({super.key});
 
@@ -21,6 +32,12 @@ class PawTrackApp extends StatelessWidget {
     return MaterialApp(
       title: 'PawTrack',
       debugShowCheckedModeBanner: false,
+
+      // ----------------------------------------------------------------------
+      // CONFIGURACIÓN DEL TEMA VISUAL (MATERIAL 3)
+      // Define la paleta de colores azul institucional de PawTrack y los
+      // estilos predeterminados para formularios, tarjetas y alertas.
+      // ----------------------------------------------------------------------
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF2A5FC4),
@@ -80,17 +97,24 @@ class PawTrackApp extends StatelessWidget {
         dividerColor: const Color(0xFFD0DBF5),
         useMaterial3: true,
       ),
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-                body: Center(child: CircularProgressIndicator()));
-          }
-          if (snap.data == null) return const LoginScreen();
-          NotificationService.init(snap.data!.uid);
-          return const HomeScreen();
-        },
+      // ----------------------------------------------------------------------
+      // CONTROL DE SESIÓN EN TIEMPO REAL
+      // Si el usuario no ha iniciado sesión muestra LoginScreen; si ya tiene
+      // sesión activa, inicializa notificaciones y abre HomeScreen.
+      // ----------------------------------------------------------------------
+      home: SplashScreen(
+        child: StreamBuilder<User?>(
+          stream: FirebaseAuth.instance.authStateChanges(),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()));
+            }
+            if (snap.data == null) return const LoginScreen();
+            NotificationService.init(snap.data!.uid);
+            return const HomeScreen();
+          },
+        ),
       ),
     );
   }

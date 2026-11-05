@@ -46,6 +46,8 @@ Para revisar la versión web en un teléfono conectado a la misma red Wi-Fi, eje
 ## Usuario "personal"
 Regístrate (quedas como estudiante) y en Firestore → usuarios → tu documento cambia `role` a `personal`.
 
+El catálogo de perros se almacena en la colección existente `CANES` (Firebase distingue entre mayúsculas y minúsculas). Las vacunas e historial médico son subcolecciones de cada documento de `CANES`.
+
 Los perfiles se guardan en la colección `usuarios`. Firebase Authentication es independiente de Firestore: borrar el perfil bloquea el acceso a PawTrack, pero no elimina la cuenta de inicio de sesión. Para borrar también las credenciales, elimina la cuenta en Authentication → Users. Durante la transición, los perfiles antiguos de `users` se copian a `usuarios` al iniciar sesión; la colección antigua debe retirarse después de verificar la migración.
 
 ## Notificaciones (opcional, plan Blaze)

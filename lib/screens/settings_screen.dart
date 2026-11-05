@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 
+// ============================================================================
+// PANTALLA DE CONFIGURACIONES Y PERFIL (SettingsScreen)
+// Muestra los datos de la cuenta activa (nombre, correo, rol), el estado de
+// los permisos de la aplicación y el botón para cerrar sesión.
+// ============================================================================
 class SettingsScreen extends StatelessWidget {
   final AppUser user;
   const SettingsScreen({super.key, required this.user});

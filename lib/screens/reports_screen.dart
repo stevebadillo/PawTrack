@@ -26,6 +26,11 @@ Color statusColor(String s) => s == 'resuelto'
         ? const Color(0xFFB45309)
         : const Color(0xFFDC2626));
 
+// ============================================================================
+// PANTALLA DE LISTADO Y FILTRADO DE REPORTES (ReportsScreen)
+// Permite visualizar las incidencias reportadas en el campus, filtrarlas por
+// estado, tipo o fecha, y abrir la hoja de detalle de cada reporte.
+// ============================================================================
 class ReportsScreen extends StatefulWidget {
   final AppUser user;
   const ReportsScreen({super.key, required this.user});
@@ -35,13 +40,14 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
-  // Filter state
+  // Variables de estado para los filtros de búsqueda
   String? _statusFilter; // null = Todos, 'pendiente', 'en_revision', 'resuelto'
   String? _incidentTypeFilter; // 'perdido', 'agresivo', 'otro'
   String? _datePreset; // 'hoy', 'semana', 'mes'
   DateTime? _dateFrom;
   DateTime? _dateTo;
 
+  // Abre la ventana emergente de filtros avanzados
   void _openFilterModal() async {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
@@ -67,9 +73,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
+  // Filtra la lista de reportes según el estado, tipo de incidencia y rango de fechas
   List<Report> _applyFilters(List<Report> list) {
     return list.where((r) {
-      // Status filter
+      // Filtro por estado del reporte
       if (_statusFilter != null) {
         if (_statusFilter == 'en_revision') {
           if (r.status != 'en_revision' && r.status != 'en_atencion') return false;
@@ -78,14 +85,14 @@ class _ReportsScreenState extends State<ReportsScreen> {
         }
       }
 
-      // Incident type filter
+      // Filtro por tipo de incidencia
       if (_incidentTypeFilter != null && _incidentTypeFilter!.isNotEmpty) {
         if (r.incidentType.toLowerCase() != _incidentTypeFilter!.toLowerCase()) {
           return false;
         }
       }
 
-      // Date preset
+      // Filtro rápido por fecha (Hoy, Última semana, Último mes)
       final now = DateTime.now();
       if (_datePreset == 'hoy') {
         final startOfToday = DateTime(now.year, now.month, now.day);
@@ -98,7 +105,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         if (r.createdAt.isBefore(monthAgo)) return false;
       }
 
-      // Custom date range
+      // Filtro por rango de fechas personalizado (Desde / Hasta)
       if (_dateFrom != null && r.createdAt.isBefore(_dateFrom!)) return false;
       if (_dateTo != null) {
         final endOfTo = DateTime(_dateTo!.year, _dateTo!.month, _dateTo!.day, 23, 59, 59);

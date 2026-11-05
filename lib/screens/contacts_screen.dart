@@ -3,9 +3,15 @@ import 'package:flutter/services.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
 
+// ============================================================================
+// PANTALLA DE CONTACTOS DE EMERGENCIA (ContactsScreen)
+// Muestra el directorio de unidades de rescate y bienestar animal de la ESPOCH,
+// permitiendo copiar su teléfono o correo electrónico con un toque.
+// ============================================================================
 class ContactsScreen extends StatelessWidget {
   const ContactsScreen({super.key});
 
+  // Copia el teléfono o correo al portapapeles y muestra una confirmación
   void _copy(BuildContext context, String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(

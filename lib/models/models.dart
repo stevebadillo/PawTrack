@@ -1,5 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// ============================================================================
+// MODELO DE USUARIO (AppUser)
+// Representa a la persona autenticada en PawTrack y su rol dentro del campus
+// ('estudiante' o 'personal').
+// ============================================================================
 class AppUser {
   final String uid, name, email, role; // role: 'estudiante' | 'personal'
   AppUser(
@@ -7,8 +12,11 @@ class AppUser {
       required this.name,
       required this.email,
       required this.role});
+
+  // Indica si el usuario pertenece al personal autorizado del campus
   bool get isStaff => role == 'personal';
 
+  // Construye una instancia de AppUser a partir de un documento de Firestore
   factory AppUser.fromDoc(DocumentSnapshot d) {
     final m = d.data() as Map<String, dynamic>? ?? {};
     return AppUser(
@@ -19,13 +27,18 @@ class AppUser {
   }
 }
 
+// ============================================================================
+// MODELO DE PERRO COMUNITARIO (Dog)
+// Almacena los datos de identificación, rasgos físicos y estado sanitario
+// de cada perro registrado en el catálogo de la ESPOCH.
+// ============================================================================
 class Dog {
   final String id, name, sex, color, description, photoUrl;
   final bool hasRedCollar;
   final DateTime createdAt;
-  final String age; // e.g. '3'
-  final String allergies; // e.g. 'Ninguna conocida'
-  final bool isSterilized;
+  final String age; // Edad aproximada en años
+  final String allergies; // Alergias conocidas
+  final bool isSterilized; // Estado de esterilización
 
   Dog({
     required this.id,
@@ -41,11 +54,13 @@ class Dog {
     this.isSterilized = true,
   });
 
+  // Comparación por ID para que funcione correctamente en selectores (Dropdown)
   @override
   bool operator ==(Object other) => other is Dog && other.id == id;
   @override
   int get hashCode => id.hashCode;
 
+  // Convierte un documento de la colección 'dogs' de Firestore en un objeto Dog
   factory Dog.fromDoc(DocumentSnapshot d) {
     final m = d.data() as Map<String, dynamic>;
     return Dog(
@@ -64,6 +79,11 @@ class Dog {
   }
 }
 
+// ============================================================================
+// MODELO DE ENTRADA MÉDICA (MedicalEntry)
+// Representa una consulta, diagnóstico o tratamiento dentro del historial
+// clínico de un perro.
+// ============================================================================
 class MedicalEntry {
   final String id;
   final String title;
@@ -87,6 +107,7 @@ class MedicalEntry {
     this.documents = const [],
   });
 
+  // Construye una entrada médica desde la subcolección 'medical_entries'
   factory MedicalEntry.fromDoc(DocumentSnapshot d) {
     final m = d.data() as Map<String, dynamic>? ?? {};
     return MedicalEntry(
@@ -105,6 +126,10 @@ class MedicalEntry {
   }
 }
 
+// ============================================================================
+// MODELO DE VACUNA (Vaccine)
+// Registra una vacuna o desparasitación aplicada a un perro y su próxima dosis.
+// ============================================================================
 class Vaccine {
   final String id, name, notes;
   final DateTime appliedAt;
@@ -116,6 +141,7 @@ class Vaccine {
       required this.appliedAt,
       this.nextDate});
 
+  // Construye un registro de vacuna desde la subcolección 'vaccines'
   factory Vaccine.fromDoc(DocumentSnapshot d) {
     final m = d.data() as Map<String, dynamic>;
     return Vaccine(
@@ -128,8 +154,14 @@ class Vaccine {
   }
 }
 
+// Lista de estados posibles por los que pasa un reporte de incidencia
 const reportStatuses = ['pendiente', 'en_revision', 'en_atencion', 'resuelto'];
 
+// ============================================================================
+// MODELO DE REPORTE DE INCIDENCIA (Report)
+// Contiene toda la información de un reporte enviado en el campus: evidencia
+// fotográfica, ubicación GPS, estado del perro, tipo de incidencia y notas.
+// ============================================================================
 class Report {
   final String id,
       description,
@@ -145,7 +177,7 @@ class Report {
   final DateTime createdAt;
   final String dogStatus; // 'con_vida', 'herido', 'sin_vida', 'no_se'
   final String incidentType; // 'perdido', 'agresivo', 'otro'
-  final List<String> photos; // base64 or url list
+  final List<String> photos; // Lista de fotos en base64 o URL
 
   Report({
     required this.id,
@@ -167,8 +199,10 @@ class Report {
     this.photos = const [],
   });
 
+  // Verifica si el reporte corresponde a un perro aún no identificado
   bool get unidentified => dogId == null && dogName == null;
 
+  // Convierte un documento de la colección 'reports' de Firestore en un Report
   factory Report.fromDoc(DocumentSnapshot d) {
     final m = d.data() as Map<String, dynamic>? ?? {};
     final rawPhotos = m['photos'] ?? m['evidencias'] ?? m['imagenes'];
@@ -205,6 +239,10 @@ class Report {
   }
 }
 
+// ============================================================================
+// MODELO DE CONTACTO DE EMERGENCIA (Contact)
+// Representa una entidad o unidad de apoyo y rescate animal en la ESPOCH.
+// ============================================================================
 class Contact {
   final String id;
   final String name;
@@ -222,6 +260,7 @@ class Contact {
     this.description = '',
   });
 
+  // Construye un Contacto a partir de un documento de Firestore
   factory Contact.fromDoc(DocumentSnapshot d) {
     final m = d.data() as Map<String, dynamic>? ?? {};
     return Contact(
@@ -235,6 +274,10 @@ class Contact {
   }
 }
 
+// ============================================================================
+// MODELO DE NOTIFICACIÓN (AppNotificationItem)
+// Representa un aviso o alerta enviada al usuario sobre el estado de reportes.
+// ============================================================================
 class AppNotificationItem {
   final String id;
   final String title;
@@ -252,6 +295,7 @@ class AppNotificationItem {
     this.reportId,
   });
 
+  // Construye una notificación a partir de un documento de Firestore
   factory AppNotificationItem.fromDoc(DocumentSnapshot d) {
     final m = d.data() as Map<String, dynamic>? ?? {};
     return AppNotificationItem(

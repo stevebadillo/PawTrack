@@ -7,6 +7,11 @@ import '../services/data_service.dart';
 import '../services/location_service.dart';
 import 'reports_screen.dart';
 
+// ============================================================================
+// PANTALLA DE MAPA DE INCIDENCIAS (MapScreen)
+// Muestra el mapa interactivo del campus de la ESPOCH con marcadores de color
+// según el estado de cada reporte y una tarjeta inferior con el detalle.
+// ============================================================================
 class MapScreen extends StatefulWidget {
   final AppUser user;
   const MapScreen({super.key, required this.user});
@@ -16,7 +21,8 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  static const _espoch = LatLng(-1.6545, -78.6775); // Campus ESPOCH, Riobamba
+  // Coordenadas centrales del campus politécnico ESPOCH en Riobamba
+  static const _espoch = LatLng(-1.6545, -78.6775);
   final MapController _mapController = MapController();
 
   Report? _selectedReport;
@@ -28,6 +34,7 @@ class _MapScreenState extends State<MapScreen> {
     _getUserLocation();
   }
 
+  // Obtiene la ubicación actual del dispositivo para mostrarla en el mapa
   Future<void> _getUserLocation() async {
     try {
       final pos = await LocationService.current();
@@ -38,6 +45,7 @@ class _MapScreenState extends State<MapScreen> {
     } catch (_) {}
   }
 
+  // Centra la vista del mapa en la ubicación del usuario o en la ESPOCH
   void _recenter() {
     final target = _userLocation ?? _espoch;
     _mapController.move(target, 16.5);
@@ -50,14 +58,14 @@ class _MapScreenState extends State<MapScreen> {
       builder: (context, snap) {
         final reports = snap.data ?? <Report>[];
 
-        // If none is selected yet and reports exist, select the first one
+        // Si aún no hay un reporte seleccionado, selecciona el más reciente por defecto
         if (_selectedReport == null && reports.isNotEmpty) {
           _selectedReport = reports.first;
         }
 
         return Column(
           children: [
-            // Map Screen Top Header
+            // Bloque 1: Encabezado superior del mapa
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
               child: Row(
@@ -74,7 +82,7 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
 
-            // Map Area + Floating Bottom Card
+            // Bloque 2: Mapa interactivo y tarjeta flotante inferior
             Expanded(
               child: Stack(
                 children: [

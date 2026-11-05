@@ -8,6 +8,11 @@ import '../models/models.dart';
 import '../services/data_service.dart';
 import '../services/location_service.dart';
 
+// ============================================================================
+// PANTALLA DE CREACIÓN DE REPORTE (ReportFormScreen)
+// Permite a estudiantes y personal reportar una incidencia canina adjuntando
+// fotografía, estado del perro, tipo de incidencia, descripción y ubicación GPS.
+// ============================================================================
 class ReportFormScreen extends StatefulWidget {
   final AppUser user;
   const ReportFormScreen({super.key, required this.user});
@@ -27,7 +32,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   bool _saving = false;
   String? _locError;
 
-  // Image 2 options
+  // Opciones seleccionadas de estado del perro y tipo de incidencia
   String _dogStatus = 'herido'; // 'con_vida', 'herido', 'sin_vida', 'no_se'
   String _incidentType = 'perdido'; // 'perdido', 'agresivo', 'otro'
 

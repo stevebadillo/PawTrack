@@ -4,17 +4,30 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../models/models.dart';
 
-/// Firebase Authentication (RF01, RF02, RF03).
+// ============================================================================
+// SERVICIO DE AUTENTICACIÓN (AuthService)
+// Gestiona el inicio de sesión, registro de usuarios, recuperación de
+// contraseña, acceso con Google y lectura del perfil desde Firestore.
+// ============================================================================
 class AuthService {
   static final _auth = FirebaseAuth.instance;
   static final _db = FirebaseFirestore.instance;
 
+  // --------------------------------------------------------------------------
+  // INICIO DE SESIÓN CON CORREO Y CONTRASEÑA
+  // Autentica las credenciales y verifica que el usuario tenga perfil en Firestore
+  // --------------------------------------------------------------------------
   static Future<void> login(String email, String password) async {
     final credential = await _auth.signInWithEmailAndPassword(
         email: email, password: password);
     await _requireOrMigrateProfile(credential.user);
   }
 
+  // --------------------------------------------------------------------------
+  // INICIO DE SESIÓN O REGISTRO CON CUENTA DE GOOGLE
+  // Soporta tanto entorno web (popup) como móvil (GoogleSignIn). Si el usuario
+  // entra por primera vez con Google, le crea automáticamente su perfil.
+  // --------------------------------------------------------------------------
   static Future<UserCredential?> loginWithGoogle() async {
     late final UserCredential credential;
     if (kIsWeb) {
@@ -29,19 +42,22 @@ class AuthService {
       );
       credential = await _auth.signInWithCredential(oauth);
     }
-    // Google access is also the registration path. If this Authentication
-    // account survived after its Firestore profile was removed, recreate a
-    // student profile so the selected Google account can enter again. Existing
-    // profiles (including legacy personal roles) are kept as they are.
     await _requireOrMigrateProfile(credential.user, createIfNew: true);
     return credential;
   }
 
+  // --------------------------------------------------------------------------
+  // RECUPERACIÓN DE CONTRASEÑA
+  // Envía el correo oficial de Firebase con el enlace para crear una nueva clave
+  // --------------------------------------------------------------------------
   static Future<void> sendPasswordReset(String email) =>
       _auth.sendPasswordResetEmail(email: email);
 
-  /// Todo usuario nuevo es 'estudiante'. El rol 'personal' lo asigna
-  /// un administrador desde la consola de Firebase.
+  // --------------------------------------------------------------------------
+  // REGISTRO DE NUEVO USUARIO
+  // Crea el usuario en Firebase Authentication y guarda su documento inicial
+  // en la colección 'usuarios' con el rol por defecto 'estudiante'.
+  // --------------------------------------------------------------------------
   static Future<void> register(
       String name, String email, String password) async {
     final cred = await _auth.createUserWithEmailAndPassword(
@@ -54,8 +70,11 @@ class AuthService {
     });
   }
 
-  /// Uses Spanish collection names. A legacy profile is moved on its owner's
-  /// next sign-in so existing roles survive the collection rename.
+  // --------------------------------------------------------------------------
+  // VERIFICACIÓN Y MIGRACIÓN DE PERFIL DE USUARIO EN FIRESTORE
+  // Comprueba que exista el documento en 'usuarios'. Si estaba en la colección
+  // antigua ('users'), lo migra automáticamente conservando su rol.
+  // --------------------------------------------------------------------------
   static Future<void> _requireOrMigrateProfile(User? user,
       {bool createIfNew = false}) async {
     if (user == null) return;
@@ -84,16 +103,19 @@ class AuthService {
     throw const UserProfileMissingException();
   }
 
+  // --------------------------------------------------------------------------
+  // CIERRE DE SESIÓN
+  // Finaliza la sesión activa en Firebase Authentication
+  // --------------------------------------------------------------------------
   static Future<void> logout() => _auth.signOut();
 
+  // --------------------------------------------------------------------------
+  // FLUJO EN TIEMPO REAL DEL USUARIO ACTUAL
+  // Escucha los cambios en el documento del usuario en la colección 'usuarios'
+  // --------------------------------------------------------------------------
   static Stream<AppUser> currentUser() async* {
     final user = _auth.currentUser;
     if (user == null) throw const UserProfileMissingException();
-    // Also migrates the current session, so users do not need to sign out just
-    // because this app switched from the old collection name.
-    // Firebase emits authStateChanges before the Google popup handler finishes
-    // writing its Firestore profile. Provision here too to avoid racing that
-    // write and signing the user straight back out.
     final signedInWithGoogle = user.providerData
         .any((provider) => provider.providerId == 'google.com');
     await _requireOrMigrateProfile(user, createIfNew: signedInWithGoogle);
@@ -105,6 +127,10 @@ class AuthService {
   }
 }
 
+// ============================================================================
+// EXCEPCIÓN DE PERFIL FALTANTE EN FIRESTORE
+// Se lanza cuando una cuenta existe en Auth pero fue borrada de Firestore.
+// ============================================================================
 class UserProfileMissingException implements Exception {
   const UserProfileMissingException();
 

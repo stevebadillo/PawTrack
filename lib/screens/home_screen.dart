@@ -9,6 +9,12 @@ import 'report_form_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
 
+// ============================================================================
+// PANTALLA CONTENEDORA PRINCIPAL (HomeScreen)
+// Gestiona el menú lateral (Drawer), la barra superior con el rol del usuario
+// y la navegación entre las pestañas de Inicio, Perros, Reportes, Mapa,
+// Notificaciones y Configuraciones.
+// ============================================================================
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -16,9 +22,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Índice de la pestaña activa actualmente
   int _tab = 0;
+  // Flujo con los datos del usuario autenticado
   late final Stream<AppUser> _user = AuthService.currentUser();
 
+  // Abre el formulario para crear un nuevo reporte de incidencia
   void _createReport(AppUser user) => Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => ReportFormScreen(user: user)),
@@ -89,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Left: Hamburger menu button -> Opens Drawer
+                        // Botón izquierdo de menú hamburguesa -> Abre el menú lateral (Drawer)
                         InkWell(
                           onTap: () =>
                               Scaffold.of(scaffoldContext).openDrawer(),
@@ -120,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
 
-                        // Center: Role pill badge
+                        // Etiqueta central con el rol del usuario (Estudiante o Personal)
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 7),
@@ -150,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
 
-                        // Right: Circular Paw badge -> Takes user directly to Home (Inicio)
+                        // Botón circular derecho con huella -> Regresa directamente al Inicio
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () {

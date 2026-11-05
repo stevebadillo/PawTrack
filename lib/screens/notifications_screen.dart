@@ -3,6 +3,11 @@ import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
 
+// ============================================================================
+// PANTALLA DE NOTIFICACIONES (NotificationsScreen)
+// Muestra las alertas sobre cambios de estado en los reportes del estudiante
+// y los avisos de nuevas incidencias para el personal del campus.
+// ============================================================================
 class NotificationsScreen extends StatelessWidget {
   final AppUser user;
   const NotificationsScreen({super.key, required this.user});
@@ -28,7 +33,8 @@ class NotificationsScreen extends StatelessWidget {
             stream: DataService.notifications(user.uid),
             builder: (context, notifSnap) {
               return StreamBuilder<List<Report>>(
-                stream: DataService.reports(reporterId: user.isStaff ? null : user.uid),
+                stream: DataService.reports(
+                    reporterId: user.isStaff ? null : user.uid),
                 builder: (context, reportsSnap) {
                   final notifs = notifSnap.data ?? [];
                   final reports = reportsSnap.data ?? [];
@@ -44,22 +50,32 @@ class NotificationsScreen extends StatelessWidget {
                     ));
                   }
 
-                  if (items.isEmpty) {
-                    for (final r in reports) {
-                      final dogLabel = r.unidentified ? 'Perro sin identificar' : (r.dogName ?? 'Perro');
+                  // Report-based notifications are derived from the live
+                  // reports stream so staff sees every campus report even if
+                  // FCM or a stored notification document is unavailable.
+                  final notifiedReportIds =
+                      notifs.map((n) => n.reportId).whereType<String>().toSet();
+                  for (final r in reports) {
+                    if (!notifiedReportIds.contains(r.id)) {
+                      final dogLabel = r.unidentified
+                          ? 'Perro sin identificar'
+                          : (r.dogName ?? 'Perro');
                       if (user.isStaff) {
                         if (r.status == 'pendiente') {
                           items.add(_NotifData(
                             title: 'Nueva incidencia: $dogLabel',
-                            body: '${r.reporterName.isNotEmpty ? r.reporterName : "Estudiante"} reportó: "${r.description}"',
+                            body:
+                                '${r.reporterName.isNotEmpty ? r.reporterName : "Estudiante"} reportó: "${r.description}"',
                             date: r.createdAt,
                             icon: Icons.warning_amber_rounded,
                             color: const Color(0xFFDC2626),
                           ));
-                        } else if (r.status == 'en_revision' || r.status == 'en_atencion') {
+                        } else if (r.status == 'en_revision' ||
+                            r.status == 'en_atencion') {
                           items.add(_NotifData(
                             title: 'Incidencia en revisión: $dogLabel',
-                            body: 'El personal está atendiendo el reporte en el campus.',
+                            body:
+                                'El personal está atendiendo el reporte en el campus.',
                             date: r.createdAt,
                             icon: Icons.access_time_rounded,
                             color: const Color(0xFFB45309),
@@ -67,7 +83,9 @@ class NotificationsScreen extends StatelessWidget {
                         } else {
                           items.add(_NotifData(
                             title: 'Incidencia atendida: $dogLabel',
-                            body: r.staffNote.isNotEmpty ? r.staffNote : 'Caso resuelto satisfactoriamente.',
+                            body: r.staffNote.isNotEmpty
+                                ? r.staffNote
+                                : 'Caso resuelto satisfactoriamente.',
                             date: r.createdAt,
                             icon: Icons.check_circle_outline,
                             color: const Color(0xFF15803D),
@@ -77,15 +95,18 @@ class NotificationsScreen extends StatelessWidget {
                         if (r.status == 'resuelto') {
                           items.add(_NotifData(
                             title: 'Reporte resuelto',
-                            body: 'La atención de $dogLabel ha finalizado satisfactoriamente.',
+                            body:
+                                'La atención de $dogLabel ha finalizado satisfactoriamente.',
                             date: r.createdAt,
                             icon: Icons.check_circle_outline,
                             color: const Color(0xFF15803D),
                           ));
-                        } else if (r.status == 'en_revision' || r.status == 'en_atencion') {
+                        } else if (r.status == 'en_revision' ||
+                            r.status == 'en_atencion') {
                           items.add(_NotifData(
                             title: 'Reporte en revisión',
-                            body: 'El personal está atendiendo la incidencia sobre $dogLabel.',
+                            body:
+                                'El personal está atendiendo la incidencia sobre $dogLabel.',
                             date: r.createdAt,
                             icon: Icons.sync,
                             color: const Color(0xFFB45309),
@@ -93,7 +114,8 @@ class NotificationsScreen extends StatelessWidget {
                         } else {
                           items.add(_NotifData(
                             title: 'Reporte registrado',
-                            body: 'Tu reporte de $dogLabel fue recibido correctamente.',
+                            body:
+                                'Tu reporte de $dogLabel fue recibido correctamente.',
                             date: r.createdAt,
                             icon: Icons.assignment_outlined,
                             color: const Color(0xFF1E5BB0),
@@ -103,6 +125,8 @@ class NotificationsScreen extends StatelessWidget {
                     }
                   }
 
+                  items.sort((a, b) => b.date.compareTo(a.date));
+
                   if (items.isEmpty) {
                     return Center(
                       child: Padding(
@@ -110,17 +134,22 @@ class NotificationsScreen extends StatelessWidget {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: const [
-                            Icon(Icons.notifications_none_rounded, size: 54, color: Color(0xFF94A3B8)),
+                            Icon(Icons.notifications_none_rounded,
+                                size: 54, color: Color(0xFF94A3B8)),
                             SizedBox(height: 16),
                             Text(
                               'No tienes notificaciones',
-                              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF0F2B48)),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: Color(0xFF0F2B48)),
                             ),
                             SizedBox(height: 6),
                             Text(
                               'Aquí recibirás alertas sobre el estado de tus reportes y campañas del campus.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                              style: TextStyle(
+                                  color: Color(0xFF64748B), fontSize: 13),
                             ),
                           ],
                         ),
@@ -176,8 +205,10 @@ class NotificationsScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    DateFormat('dd MMM · HH:mm').format(it.date),
-                                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                                    DateFormat('dd MMM · HH:mm')
+                                        .format(it.date),
+                                    style: const TextStyle(
+                                        color: Color(0xFF94A3B8), fontSize: 11),
                                   ),
                                 ],
                               ),

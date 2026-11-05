@@ -4,6 +4,11 @@ import '../services/data_service.dart';
 import 'dog_detail_screen.dart';
 import 'dog_form_screen.dart';
 
+// ============================================================================
+// PANTALLA DE CATÁLOGO DE PERROS (DogsScreen)
+// Lista todos los perros comunitarios registrados en el campus, permite
+// buscarlos por nombre o rasgos, y da acceso a su ficha médica detallada.
+// ============================================================================
 class DogsScreen extends StatefulWidget {
   final AppUser user;
   const DogsScreen({super.key, required this.user});
@@ -12,6 +17,7 @@ class DogsScreen extends StatefulWidget {
 }
 
 class _DogsScreenState extends State<DogsScreen> {
+  // Controlador y texto de búsqueda para filtrar perros en tiempo real
   final _search = TextEditingController();
   String _query = '';
 
@@ -21,6 +27,7 @@ class _DogsScreenState extends State<DogsScreen> {
     super.dispose();
   }
 
+  // Confirma y elimina la ficha de un perro del catálogo (solo para personal)
   Future<void> _deleteDog(BuildContext context, Dog dog) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -113,9 +120,11 @@ class _DogsScreenState extends State<DogsScreen> {
                 if (widget.user.isStaff)
                   FilledButton.tonalIcon(
                     onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const DogFormScreen())),
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DogFormScreen(user: widget.user),
+                      ),
+                    ),
                     icon: const Icon(Icons.add),
                     label: const Text('Añadir'),
                   ),
@@ -155,9 +164,11 @@ class _DogsScreenState extends State<DogsScreen> {
                   action: widget.user.isStaff
                       ? FilledButton.icon(
                           onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const DogFormScreen())),
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DogFormScreen(user: widget.user),
+                            ),
+                          ),
                           icon: const Icon(Icons.add),
                           label: const Text('Registrar primer perro'),
                         )
@@ -266,11 +277,14 @@ class _DogCard extends StatelessWidget {
                 ),
               ),
               if (canDelete)
-                IconButton(
+                IconButton.filledTonal(
                   tooltip: 'Eliminar perro',
                   onPressed: onDelete,
+                  style: IconButton.styleFrom(
+                    foregroundColor: colors.error,
+                    backgroundColor: colors.errorContainer,
+                  ),
                   icon: const Icon(Icons.delete_outline_rounded),
-                  color: colors.error,
                 )
               else
                 const Icon(Icons.chevron_right),
