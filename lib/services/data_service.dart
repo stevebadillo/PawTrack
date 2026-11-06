@@ -4,7 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/models.dart';
 
-/// Firestore para datos y reportes; Firebase Storage para fotos de perros.
+/// Acceso centralizado a las APIs de datos de PawTrack.
+///
+/// - Cloud Firestore: usuarios, perros, vacunas, reportes y notificaciones.
+/// - Firebase Storage: actualmente almacena las fotos de perros.
+///
+/// Si se migra a Cloudinary, el método uploadPhoto será el punto principal a
+/// sustituir y Firestore podrá guardar solamente la URL resultante.
 class DataService {
   static final _db = FirebaseFirestore.instance;
   static final _storage = FirebaseStorage.instance;

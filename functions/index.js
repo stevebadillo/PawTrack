@@ -1,4 +1,7 @@
-// Cloud Functions que ENVÍAN las notificaciones FCM (RF15). Requiere plan Blaze.
+// Cloud Functions de PawTrack.
+// Firebase Admin permite acceder al backend de Firebase sin exponer credenciales
+// en Flutter. Estas funciones envían notificaciones FCM cuando cambian los datos.
+// Requieren desplegarse en Firebase y actualmente requieren el plan Blaze.
 // Despliegue: cd functions && npm install && firebase deploy --only functions
 const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
 const { onSchedule } = require('firebase-functions/v2/scheduler');

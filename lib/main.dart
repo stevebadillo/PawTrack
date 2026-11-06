@@ -15,6 +15,9 @@ import 'screens/splash_screen.dart';
 // ============================================================================
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializa Firebase antes de levantar la interfaz. Esta configuración
+  // conecta la app con el proyecto definido en firebase_options.dart.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const PawTrackApp());
 }

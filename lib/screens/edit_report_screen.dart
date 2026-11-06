@@ -256,15 +256,16 @@ class _EditReportScreenState extends State<EditReportScreen> {
                 Stack(
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: SizedBox(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
                         width: 90,
                         height: 90,
+                        color: const Color(0xFFF1F5F9),
                         child: _newPhoto != null
-                            ? Image.memory(_newPhoto!, fit: BoxFit.cover)
+                            ? Image.memory(_newPhoto!, fit: BoxFit.contain)
                             : (widget.report.photoBase64.isNotEmpty
-                                ? Image.memory(base64Decode(widget.report.photoBase64), fit: BoxFit.cover)
-                                : Image.network(widget.report.photoUrl, fit: BoxFit.cover)),
+                                ? Image.memory(base64Decode(widget.report.photoBase64), fit: BoxFit.contain)
+                                : Image.network(widget.report.photoUrl, fit: BoxFit.contain)),
                       ),
                     ),
                     Positioned(
