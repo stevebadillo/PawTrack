@@ -12,7 +12,28 @@
           "package_name": "ec.edu.espoch.pawtrack"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "118457420954-16v6mvkd5qkva75odqlj4lt037f0ui3v.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ec.edu.espoch.pawtrack",
+            "certificate_hash": "942c7ebc321b0adeb4bc79d638fba57ff6766047"
+          }
+        },
+        {
+          "client_id": "118457420954-mm9scimbptlcbtihu5cldhu33pl6vvpl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "ec.edu.espoch.pawtrack",
+            "certificate_hash": "546f07bddba63092e4f8f26a1ece7104b0e12124"
+          }
+        },
+        {
+          "client_id": "118457420954-n4oc8lgpr9ef0nhc5fn32o66kvl3mjrk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDJMVbIZPjzRuGsEz3HFNhcbN8q3XOtJcg"
@@ -20,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "118457420954-n4oc8lgpr9ef0nhc5fn32o66kvl3mjrk.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "118457420954-vvtdhs7bjhgor71hgcvvs24rithnocbs.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "ec.edu.espoch.pawtrack"
+              }
+            }
+          ]
         }
       }
     }
