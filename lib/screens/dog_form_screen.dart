@@ -260,13 +260,6 @@ class _DogFormScreenState extends State<DogFormScreen> {
                         ),
                       ],
                     ),
-                    Text(
-                        'La foto es opcional. Para guardarla, Firebase Storage debe estar habilitado.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: colors.onSurfaceVariant)),
                   ],
                 ),
               ),
