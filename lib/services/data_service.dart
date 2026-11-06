@@ -1,5 +1,5 @@
-import 'dart:typed_data';
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/models.dart';
@@ -8,7 +8,13 @@ import '../models/models.dart';
 class DataService {
   static final _db = FirebaseFirestore.instance;
   static final _storage = FirebaseStorage.instance;
-  static const dogCollection = 'CANES';
+
+  // Nombres de colecciones de PawTrack (un solo lugar para cambiarlos).
+  // Deben coincidir con los de firestore.rules.
+  static const dogCollection = 'canes';
+  static const medicalCollection = 'registros_medicos';
+  static const vaccineCollection = 'vacunas';
+  static const reportCollection = 'reportes';
 
   static Future<String> uploadPhoto(
     Uint8List bytes,
@@ -54,6 +60,8 @@ class DataService {
   static Stream<Dog> dog(String id) =>
       _db.collection(dogCollection).doc(id).snapshots().map(Dog.fromDoc);
 
+  /// Crea el perro y, opcionalmente, su primer registro médico y su primera
+  /// vacuna en una sola operación atómica.
   static Future<String> addDog(
     Map<String, dynamic> data, {
     Map<String, dynamic>? initialMedicalEntry,
@@ -63,10 +71,10 @@ class DataService {
     final batch = _db.batch()
       ..set(ref, {...data, 'createdAt': FieldValue.serverTimestamp()});
     if (initialMedicalEntry != null) {
-      batch.set(ref.collection('medical_entries').doc(), initialMedicalEntry);
+      batch.set(ref.collection(medicalCollection).doc(), initialMedicalEntry);
     }
     if (initialVaccine != null) {
-      batch.set(ref.collection('vaccines').doc(), initialVaccine);
+      batch.set(ref.collection(vaccineCollection).doc(), initialVaccine);
     }
     await batch.commit();
     return ref.id;
@@ -77,23 +85,26 @@ class DataService {
   }
 
   static Stream<List<MedicalEntry>> medicalEntries(String dogId) => _db
-      .collection('$dogCollection/$dogId/medical_entries')
+      .collection('$dogCollection/$dogId/$medicalCollection')
       .orderBy('date', descending: true)
       .snapshots()
       .map((s) => s.docs.map(MedicalEntry.fromDoc).toList());
 
   static Future<void> addMedicalEntry(
           String dogId, Map<String, dynamic> data) =>
-      _db.collection('$dogCollection/$dogId/medical_entries').add({
+      _db.collection('$dogCollection/$dogId/$medicalCollection').add({
         ...data,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-  /// Removes a dog and its medical history while preserving old reports.
+  /// Elimina un perro con sus vacunas y su historial médico,
+  /// conservando los reportes antiguos.
   static Future<void> deleteDog(Dog dog) async {
     final dogRef = _db.collection(dogCollection).doc(dog.id);
-    final reports =
-        await _db.collection('reports').where('dogId', isEqualTo: dog.id).get();
+    final reports = await _db
+        .collection(reportCollection)
+        .where('dogId', isEqualTo: dog.id)
+        .get();
     for (var start = 0; start < reports.docs.length; start += 450) {
       final batch = _db.batch();
       for (final report in reports.docs.skip(start).take(450)) {
@@ -106,7 +117,7 @@ class DataService {
       await batch.commit();
     }
 
-    for (final subcollection in ['vaccines', 'medical_entries']) {
+    for (final subcollection in [vaccineCollection, medicalCollection]) {
       final records = await dogRef.collection(subcollection).get();
       for (var start = 0; start < records.docs.length; start += 450) {
         final batch = _db.batch();
@@ -128,14 +139,14 @@ class DataService {
   }
 
   static Stream<List<Vaccine>> vaccines(String dogId) => _db
-      .collection('$dogCollection/$dogId/vaccines')
+      .collection('$dogCollection/$dogId/$vaccineCollection')
       .orderBy('appliedAt', descending: true)
       .snapshots()
       .map((s) => s.docs.map(Vaccine.fromDoc).toList());
 
   static Future<void> addVaccine(String dogId, String name, DateTime applied,
           DateTime? next, String notes) =>
-      _db.collection('$dogCollection/$dogId/vaccines').add({
+      _db.collection('$dogCollection/$dogId/$vaccineCollection').add({
         'name': name,
         'appliedAt': Timestamp.fromDate(applied),
         'nextDate': next == null ? null : Timestamp.fromDate(next),
@@ -143,7 +154,7 @@ class DataService {
       });
 
   static Stream<List<Report>> reports({String? reporterId}) {
-    Query q = _db.collection('reports');
+    Query q = _db.collection(reportCollection);
     if (reporterId != null) {
       // Avoid requiring a composite index for the common student view.
       q = q.where('reporterId', isEqualTo: reporterId);
@@ -160,30 +171,33 @@ class DataService {
   }
 
   static Future<void> addReport(Map<String, dynamic> data) =>
-      _db.collection('reports').add({
+      _db.collection(reportCollection).add({
         ...data,
         'status': 'pendiente',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
   static Future<void> updateReportStatus(String id, String status) =>
-      _db.collection('reports').doc(id).update({'status': status});
+      _db.collection(reportCollection).doc(id).update({'status': status});
 
   static Future<void> updateReportDescription(String id, String description) =>
-      _db.collection('reports').doc(id).update({'description': description});
+      _db
+          .collection(reportCollection)
+          .doc(id)
+          .update({'description': description});
 
   static Future<void> updateReportStaffNote(String id, String note) =>
-      _db.collection('reports').doc(id).update({'staffNote': note});
+      _db.collection(reportCollection).doc(id).update({'staffNote': note});
 
   static Future<void> updateReportFull(String id, Map<String, dynamic> data) =>
-      _db.collection('reports').doc(id).update(data);
+      _db.collection(reportCollection).doc(id).update(data);
 
   static Future<void> deleteReport(String id) =>
-      _db.collection('reports').doc(id).delete();
+      _db.collection(reportCollection).doc(id).delete();
 
   /// Identificación posterior de un perro reportado como no identificado.
   static Future<void> linkReportToDog(String reportId, Dog dog) => _db
-      .collection('reports')
+      .collection(reportCollection)
       .doc(reportId)
       .update({'dogId': dog.id, 'dogName': dog.name});
 
