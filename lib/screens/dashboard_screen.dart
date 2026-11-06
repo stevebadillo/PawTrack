@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
@@ -7,8 +8,9 @@ import 'reports_screen.dart';
 
 // ============================================================================
 // PANTALLA DE INICIO / PANEL PRINCIPAL (DashboardScreen)
-// Muestra el saludo personalizado, la tarjeta principal para crear un reporte,
-// los accesos rápidos a Mapa y Contactos, y la lista de actividad reciente.
+// Muestra el saludo personalizado, el resumen del personal o la tarjeta para
+// crear un reporte (estudiantes), los accesos rápidos a Mapa y Contactos, y la
+// lista de actividad reciente.
 // ============================================================================
 class DashboardScreen extends StatelessWidget {
   final AppUser user;
@@ -53,154 +55,158 @@ class DashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 18),
 
-            // Bloque 2: Tarjeta destacada "Reporta una incidencia"
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0D3B73), Color(0xFF144788)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF0D3B73).withOpacity(0.25),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
+            // Bloque 2: Resumen para el personal (reportes, caninos y estudiantes)
+            // o tarjeta destacada "Reporta una incidencia" para los estudiantes
+            if (user.isStaff)
+              _StaffSummaryBanner(reportCount: reports.length)
+            else
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0D3B73), Color(0xFF144788)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: CustomPaint(
-                  painter: _HeroRipplePainter(),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Expanded(
-                              child: Text(
-                                'Reporta una\nincidencia',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  height: 1.15,
-                                  letterSpacing: -0.3,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D3B73).withValues(alpha: 0.25),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: CustomPaint(
+                    painter: _HeroRipplePainter(),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Reporta una\nincidencia',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    height: 1.15,
+                                    letterSpacing: -0.3,
+                                  ),
                                 ),
                               ),
-                            ),
-                            // Insignia circular de huella con punto de alerta naranja
-                            Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                Container(
-                                  width: 44,
-                                  height: 44,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.22),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.3),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.pets,
-                                      color: Colors.white,
-                                      size: 22,
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  top: -2,
-                                  right: -2,
-                                  child: Container(
-                                    width: 13,
-                                    height: 13,
+                              // Insignia circular de huella con punto de alerta naranja
+                              Stack(
+                                clipBehavior: Clip.none,
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFF97316),
+                                      color: Colors.white.withValues(alpha: 0.22),
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: const Color(0xFF0D3B73),
-                                        width: 2,
+                                        color: Colors.white.withValues(alpha: 0.3),
+                                        width: 1,
                                       ),
                                     ),
                                     child: const Center(
-                                      child: Text(
-                                        '!',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 7.5,
-                                          fontWeight: FontWeight.w900,
+                                      child: Icon(
+                                        Icons.pets,
+                                        color: Colors.white,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: -2,
+                                    right: -2,
+                                    child: Container(
+                                      width: 13,
+                                      height: 13,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF97316),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: const Color(0xFF0D3B73),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: const Center(
+                                        child: Text(
+                                          '!',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 7.5,
+                                            fontWeight: FontWeight.w900,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        // Botón tipo píldora "Crear reporte"
-                        Material(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(30),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(30),
-                            onTap: onNewReport,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 11,
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF0D3B73),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(
-                                      Icons.camera_alt_outlined,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Text(
-                                    'Crear reporte',
-                                    style: TextStyle(
-                                      color: Color(0xFF0D3B73),
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14.5,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  const Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: Color(0xFF0D3B73),
-                                    size: 24,
-                                  ),
                                 ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                          // Botón tipo píldora "Crear reporte"
+                          Material(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(30),
+                              onTap: onNewReport,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 11,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 32,
+                                      height: 32,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0D3B73),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: const Icon(
+                                        Icons.camera_alt_outlined,
+                                        color: Colors.white,
+                                        size: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Text(
+                                      'Crear reporte',
+                                      style: TextStyle(
+                                        color: Color(0xFF0D3B73),
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14.5,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    const Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: Color(0xFF0D3B73),
+                                      size: 24,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             const SizedBox(height: 18),
 
             // Bloque 3: Dos tarjetas de acceso rápido (Mapa y Contactos)
@@ -302,6 +308,154 @@ class DashboardScreen extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+// Resumen para el personal: total de reportes, caninos y estudiantes.
+class _StaffSummaryBanner extends StatelessWidget {
+  final int reportCount;
+
+  const _StaffSummaryBanner({
+    required this.reportCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF0D3B73),
+            Color(0xFF144788),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D3B73).withValues(alpha: 0.25),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: StreamBuilder<List<Dog>>(
+        stream: DataService.dogs(),
+        builder: (context, dogsSnapshot) {
+          final dogCount = dogsSnapshot.hasData
+              ? dogsSnapshot.data!.length.toString()
+              : '--';
+
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance
+                .collection('usuarios')
+                .where('role', isEqualTo: 'estudiante')
+                .snapshots(),
+            builder: (context, studentsSnapshot) {
+              final studentCount = studentsSnapshot.hasData
+                  ? studentsSnapshot.data!.docs.length.toString()
+                  : '--';
+
+              return Row(
+                children: [
+                  Expanded(
+                    child: _SummaryMetric(
+                      icon: Icons.assignment_rounded,
+                      count: reportCount.toString(),
+                      label: 'Reportes',
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _SummaryMetric(
+                      icon: Icons.pets_rounded,
+                      count: dogCount,
+                      label: 'Caninos',
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _SummaryMetric(
+                      icon: Icons.school_rounded,
+                      count: studentCount,
+                      label: 'Estudiantes',
+                    ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// Tarjeta individual de métrica (icono, cantidad y etiqueta).
+class _SummaryMetric extends StatelessWidget {
+  final IconData icon;
+  final String count;
+  final String label;
+
+  const _SummaryMetric({
+    required this.icon,
+    required this.count,
+    required this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 14,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: Colors.white,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    count,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -445,7 +599,7 @@ class _QuickCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -517,7 +671,7 @@ class _MapBackgroundPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final campusPaint = Paint()
-      ..color = const Color(0xFFEDF8ED).withOpacity(0.8)
+      ..color = const Color(0xFFEDF8ED).withValues(alpha: 0.8)
       ..style = PaintingStyle.fill;
 
     // Green zone at the bottom-right
@@ -609,7 +763,7 @@ class _HeroRipplePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.08)
+      ..color = Colors.white.withValues(alpha: 0.08)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
 
