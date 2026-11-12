@@ -28,7 +28,7 @@ class AppUser {
 }
 
 // ============================================================================
-// MODELO DE PERRO COMUNITARIO (Dog)
+// MODELO DE CAN COMUNITARIO (Dog)
 // Almacena los datos de identificación, rasgos físicos y estado sanitario
 // de cada perro registrado en el catálogo de la ESPOCH.
 // ============================================================================
