@@ -4,8 +4,9 @@ import '../models/models.dart';
 import '../services/data_service.dart';
 
 class MedicalEntryScreen extends StatefulWidget {
-  final Dog dog;
-  const MedicalEntryScreen({super.key, required this.dog});
+  final Dog? dog;
+  final String? dogName;
+  const MedicalEntryScreen({super.key, this.dog, this.dogName});
 
   @override
   State<MedicalEntryScreen> createState() => _MedicalEntryScreenState();
@@ -63,7 +64,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
 
     setState(() => _saving = true);
     try {
-      await DataService.addMedicalEntry(widget.dog.id, {
+      final entryData = {
         'title': _title.text.trim(),
         'description': _desc.text.trim(),
         'date': _date,
@@ -71,13 +72,21 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
         'diagnosis': _diagnosis.text.trim(),
         'treatment': _treatment.text.trim(),
         'nextVisit': _nextVisit,
-      });
+      };
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Entrada médica guardada con éxito.')),
-        );
-        Navigator.pop(context);
+      if (widget.dog != null) {
+        await DataService.addMedicalEntry(widget.dog!.id, entryData);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Entrada médica guardada con éxito.')),
+          );
+          Navigator.pop(context);
+        }
+      } else {
+        // Modo retorno de datos para creación de perro
+        if (mounted) {
+          Navigator.pop(context, entryData);
+        }
       }
     } catch (e) {
       if (mounted) {

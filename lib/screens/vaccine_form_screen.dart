@@ -4,8 +4,9 @@ import '../models/models.dart';
 import '../services/data_service.dart';
 
 class VaccineFormScreen extends StatefulWidget {
-  final Dog dog;
-  const VaccineFormScreen({super.key, required this.dog});
+  final Dog? dog;
+  final String? dogName;
+  const VaccineFormScreen({super.key, this.dog, this.dogName});
 
   @override
   State<VaccineFormScreen> createState() => _VaccineFormScreenState();
@@ -58,18 +59,31 @@ class _VaccineFormScreenState extends State<VaccineFormScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await DataService.addVaccine(
-        widget.dog.id,
-        _selectedVaccine,
-        _appliedDate,
-        _nextDate,
-        _notes.text.trim(),
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vacuna registrada correctamente.')),
+      final vaccineData = {
+        'name': _selectedVaccine,
+        'appliedAt': _appliedDate,
+        'nextDate': _nextDate,
+        'notes': _notes.text.trim(),
+      };
+
+      if (widget.dog != null) {
+        await DataService.addVaccine(
+          widget.dog!.id,
+          _selectedVaccine,
+          _appliedDate,
+          _nextDate,
+          _notes.text.trim(),
         );
-        Navigator.pop(context);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Vacuna registrada correctamente.')),
+          );
+          Navigator.pop(context);
+        }
+      } else {
+        if (mounted) {
+          Navigator.pop(context, vaccineData);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -127,44 +141,45 @@ class _VaccineFormScreenState extends State<VaccineFormScreen> {
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 110),
         children: [
           // Dog Mini Card (Warm beige)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFFDE7C7)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFD69E66),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.pets, color: Colors.white, size: 22),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Perro',
-                      style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
+          if (widget.dog != null || (widget.dogName != null && widget.dogName!.isNotEmpty))
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFDE7C7)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFD69E66),
+                      shape: BoxShape.circle,
                     ),
-                    Text(
-                      widget.dog.name,
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF0B2545)),
+                    child: const Center(
+                      child: Icon(Icons.pets, color: Colors.white, size: 22),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(width: 14),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Perro',
+                        style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        widget.dog?.name ?? widget.dogName ?? '',
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF0B2545)),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 24),
 
           // 1. Vacuna aplicada Dropdown
           const Text(
