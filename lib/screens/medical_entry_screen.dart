@@ -21,7 +21,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
   DateTime? _nextVisit;
   bool _saving = false;
 
-  final _fmt = DateFormat('dd/MM/yyyy');
+  final _fmt = DateFormat('dd/MM/yyyy HH:mm');
 
   @override
   void dispose() {
@@ -44,14 +44,25 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
   }
 
   Future<void> _pickNextVisit() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _date.add(const Duration(days: 14)),
-      firstDate: _date,
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (d != null) setState(() => _nextVisit = d);
-  }
+  final d = await showDatePicker(
+    context: context,
+    initialDate: _date.add(const Duration(days: 14)),
+    firstDate: _date,
+    lastDate: DateTime.now().add(const Duration(days: 365)),
+  );
+  if (d == null) return;
+
+  if (!mounted) return;
+  final t = await showTimePicker(
+    context: context,
+    initialTime: const TimeOfDay(hour: 10, minute: 0),
+  );
+  if (t == null) return;
+
+  setState(() {
+    _nextVisit = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+  });
+}
 
   Future<void> _save() async {
     if (_title.text.trim().isEmpty || _desc.text.trim().isEmpty) {
@@ -70,7 +81,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
         'vetOrClinic': _vet.text.trim(),
         'diagnosis': _diagnosis.text.trim(),
         'treatment': _treatment.text.trim(),
-        'nextVisit': _nextVisit,
+        'nextVisit': _nextVisit?.toIso8601String(),
       });
 
       if (mounted) {
@@ -226,8 +237,8 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
           const SizedBox(height: 22),
 
           // 8. Adjuntar documentos (opcional)
-          Row(
-            children: const [
+          const Row(
+            children: [
               Icon(Icons.attach_file_rounded, size: 16, color: Color(0xFF64748B)),
               SizedBox(width: 6),
               Text('Adjuntar documentos ', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5, color: Color(0xFF0B2545))),
@@ -247,9 +258,9 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFF93C5FD), width: 1.2),
             ),
-            child: Row(
+            child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
+              children: [
                 Icon(Icons.add, color: Color(0xFF2563EB), size: 20),
                 SizedBox(width: 8),
                 Text(

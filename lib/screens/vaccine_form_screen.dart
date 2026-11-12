@@ -45,14 +45,25 @@ class _VaccineFormScreenState extends State<VaccineFormScreen> {
     if (d != null) setState(() => _appliedDate = d);
   }
 
-  Future<void> _pickNextDate() async {
+Future<void> _pickNextDate() async {
     final d = await showDatePicker(
       context: context,
       initialDate: _appliedDate.add(const Duration(days: 365)),
       firstDate: _appliedDate,
       lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
     );
-    if (d != null) setState(() => _nextDate = d);
+    if (d == null) return;
+
+    if (!mounted) return;
+    final t = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 10, minute: 0),
+    );
+    if (t == null) return;
+
+    setState(() {
+      _nextDate = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+    });
   }
 
   Future<void> _save() async {
@@ -62,7 +73,7 @@ class _VaccineFormScreenState extends State<VaccineFormScreen> {
         widget.dog.id,
         _selectedVaccine,
         _appliedDate,
-        _nextDate,
+        _nextDate, // <-- Enviamos el DateTime directamente, sin .toIso8601String()
         _notes.text.trim(),
       );
       if (mounted) {
@@ -226,8 +237,8 @@ class _VaccineFormScreenState extends State<VaccineFormScreen> {
           const SizedBox(height: 20),
 
           // 3. Próxima dosis (opcional)
-          Row(
-            children: const [
+          const Row(
+            children: [
               Text(
                 'Próxima dosis ',
                 style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
@@ -262,8 +273,8 @@ class _VaccineFormScreenState extends State<VaccineFormScreen> {
           const SizedBox(height: 20),
 
           // 4. Notas (opcional)
-          Row(
-            children: const [
+          const Row(
+            children: [
               Text(
                 'Notas ',
                 style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
