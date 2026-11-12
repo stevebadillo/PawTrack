@@ -1009,4 +1009,23 @@ class _ContactsCardBackground extends StatelessWidget {
   }
 }
 
+class _HeroRipplePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.08)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    final center = Offset(size.width * 0.85, size.height * 0.35);
+    for (double r = 36; r < 240; r += 32) {
+      canvas.drawCircle(center, r, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
 
