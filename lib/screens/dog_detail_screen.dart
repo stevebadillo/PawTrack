@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
 import 'dog_form_screen.dart';
@@ -475,6 +476,7 @@ class DogDetailScreen extends StatelessWidget {
                   }
                   if (entries.isEmpty) {
                     return _historyCard(
+                      context: context,
                       date: d.createdAt,
                       title: 'Registro en PawTrack',
                       description: d.description.isNotEmpty
@@ -488,9 +490,11 @@ class DogDetailScreen extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: _historyCard(
+                            context: context,
                             date: entry.date,
                             title: entry.title,
                             description: entry.description,
+                            documents: entry.documents,
                           ),
                         ),
                     ],
@@ -557,9 +561,11 @@ class DogDetailScreen extends StatelessWidget {
   }
 
   Widget _historyCard({
+    required BuildContext context,
     required DateTime date,
     required String title,
     required String description,
+    List<String> documents = const [],
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -600,12 +606,54 @@ class DogDetailScreen extends StatelessWidget {
                         fontSize: 12.5,
                         color: Color(0xFF64748B),
                         height: 1.35)),
+                if (documents.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      for (var index = 0; index < documents.length; index++)
+                        ActionChip(
+                          avatar: Icon(
+                            documents[index].toLowerCase().contains('.pdf')
+                                ? Icons.picture_as_pdf_outlined
+                                : Icons.insert_drive_file_outlined,
+                            size: 18,
+                          ),
+                          label: Text('Abrir archivo ${index + 1}'),
+                          onPressed: () =>
+                              _openMedicalDocument(context, documents[index]),
+                        ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _openMedicalDocument(
+      BuildContext context, String documentUrl) async {
+    try {
+      final opened = await launchUrl(
+        Uri.parse(documentUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se pudo abrir el archivo.')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al abrir el archivo: $error')),
+        );
+      }
+    }
   }
 
   Widget _photoPlaceholder() {

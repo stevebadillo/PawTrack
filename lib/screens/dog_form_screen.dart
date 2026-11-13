@@ -162,6 +162,9 @@ class _DogFormScreenState extends State<DogFormScreen> {
                     _medicalEntries.first['diagnosis'] as String? ?? '',
                 'treatment':
                     _medicalEntries.first['treatment'] as String? ?? '',
+                'documents':
+                    _medicalEntries.first['documents'] as List<String>? ??
+                        const <String>[],
                 'createdAt': FieldValue.serverTimestamp(),
               }
             : null;
@@ -194,6 +197,7 @@ class _DogFormScreenState extends State<DogFormScreen> {
             'vetOrClinic': e['vetOrClinic'] ?? '',
             'diagnosis': e['diagnosis'] ?? '',
             'treatment': e['treatment'] ?? '',
+            'documents': e['documents'] ?? const <String>[],
           });
         }
         for (var i = 1; i < _vaccineEntries.length; i++) {
@@ -240,8 +244,7 @@ class _DogFormScreenState extends State<DogFormScreen> {
             'La subida de la imagen tardó demasiado. Comprueba tu conexión.',
           ArgumentError() =>
             error.toString().replaceFirst('Invalid argument(s): ', ''),
-          _ =>
-            error.toString().replaceFirst('Exception: ', ''),
+          _ => error.toString().replaceFirst('Exception: ', ''),
         };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -483,8 +486,7 @@ class _DogFormScreenState extends State<DogFormScreen> {
                   title: _medicalEntries[i]['title'] as String,
                   subtitle:
                       _dateFmt.format(_medicalEntries[i]['date'] as DateTime),
-                  onRemove: () =>
-                      setState(() => _medicalEntries.removeAt(i)),
+                  onRemove: () => setState(() => _medicalEntries.removeAt(i)),
                 ),
             ],
             const SizedBox(height: 22),
@@ -506,8 +508,7 @@ class _DogFormScreenState extends State<DogFormScreen> {
                   title: _vaccineEntries[i]['name'] as String,
                   subtitle: _dateFmt
                       .format(_vaccineEntries[i]['appliedAt'] as DateTime),
-                  onRemove: () =>
-                      setState(() => _vaccineEntries.removeAt(i)),
+                  onRemove: () => setState(() => _vaccineEntries.removeAt(i)),
                 ),
             ],
             const SizedBox(height: 16),
@@ -535,8 +536,8 @@ class _DogFormScreenState extends State<DogFormScreen> {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child:
-                          CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.check_rounded, size: 20),
               label: Text(
                 _saving
@@ -636,8 +637,7 @@ class _DogFormScreenState extends State<DogFormScreen> {
                     if (selected == options[i])
                       const Padding(
                         padding: EdgeInsets.only(right: 6),
-                        child:
-                            Icon(Icons.check, size: 16, color: Colors.white),
+                        child: Icon(Icons.check, size: 16, color: Colors.white),
                       ),
                     Text(
                       options[i],

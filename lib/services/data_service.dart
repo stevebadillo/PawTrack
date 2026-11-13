@@ -41,8 +41,8 @@ class DataService {
     } catch (cloudinaryError) {
       // 2. Si falla Cloudinary, intentar Firebase Storage como respaldo
       try {
-        final ref = _storage.ref(
-            '$folder/${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final ref = _storage
+            .ref('$folder/${DateTime.now().millisecondsSinceEpoch}.jpg');
         final task = ref.putData(
           bytes,
           SettableMetadata(contentType: 'image/jpeg'),
@@ -54,7 +54,9 @@ class DataService {
         });
         try {
           await task.timeout(const Duration(seconds: 40));
-          return await ref.getDownloadURL().timeout(const Duration(seconds: 15));
+          return await ref
+              .getDownloadURL()
+              .timeout(const Duration(seconds: 15));
         } finally {
           await progressSubscription.cancel();
         }
@@ -62,6 +64,44 @@ class DataService {
         // Relanzar el error informativo de Cloudinary para guiar la configuración
         throw Exception(
             'No se pudo subir la foto a Cloudinary: $cloudinaryError');
+      }
+    }
+  }
+
+  /// Sube un PDF a Cloudinary y usa Firebase Storage como respaldo.
+  static Future<String> uploadPdf(
+    Uint8List bytes,
+    String filename,
+  ) async {
+    if (bytes.isEmpty) throw ArgumentError('El archivo está vacío.');
+    if (bytes.length > 10 * 1024 * 1024) {
+      throw ArgumentError('El PDF no debe superar los 10 MB.');
+    }
+    if (filename.toLowerCase().split('.').last != 'pdf' ||
+        String.fromCharCodes(bytes.take(5)) != '%PDF-') {
+      throw ArgumentError('Selecciona un archivo PDF válido.');
+    }
+
+    try {
+      return await CloudinaryService.uploadPdf(
+        bytes,
+        filename: filename,
+      );
+    } catch (cloudinaryError) {
+      try {
+        final safeFilename = filename.replaceAll(RegExp(r'[^\w.-]'), '_');
+        final ref = _storage.ref(
+            'registros_medicos/${DateTime.now().microsecondsSinceEpoch}_$safeFilename');
+        final task = ref.putData(
+          bytes,
+          SettableMetadata(contentType: 'application/pdf'),
+        );
+        await task.timeout(const Duration(seconds: 40));
+        return await ref.getDownloadURL().timeout(const Duration(seconds: 15));
+      } catch (storageError) {
+        throw Exception(
+            'No se pudo subir el PDF. Cloudinary: $cloudinaryError; '
+            'Firebase Storage: $storageError');
       }
     }
   }

@@ -10,7 +10,7 @@ import 'package:pawtrack/services/cloudinary_service.dart';
 
 void main() {
   test('Cloudinary usa el entorno configurado', () {
-    expect(CloudinaryService.cloudName, 'yga1u0la');
-    expect(CloudinaryService.uploadPreset, 'pawtrack_reportes');
+    expect(CloudinaryService.cloudName, 'g3o3qo25');
+    expect(CloudinaryService.uploadPreset, 'pawtrack');
   });
 }
