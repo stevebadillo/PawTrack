@@ -77,7 +77,7 @@ class DataService {
     }
   }
 
-  /// Sube un PDF a Cloudinary y usa Firebase Storage como respaldo.
+  /// Guarda los PDFs en Firebase Storage para que puedan abrirse desde el navegador.
   static Future<String> uploadPdf(
     Uint8List bytes,
     String filename,
@@ -91,28 +91,18 @@ class DataService {
       throw ArgumentError('Selecciona un archivo PDF válido.');
     }
 
-    try {
-      return await CloudinaryService.uploadPdf(
-        bytes,
-        filename: filename,
-      );
-    } catch (cloudinaryError) {
-      try {
-        final safeFilename = filename.replaceAll(RegExp(r'[^\w.-]'), '_');
-        final ref = _storage.ref(
-            'registros_medicos/${DateTime.now().microsecondsSinceEpoch}_$safeFilename');
-        final task = ref.putData(
-          bytes,
-          SettableMetadata(contentType: 'application/pdf'),
-        );
-        await task.timeout(const Duration(seconds: 40));
-        return await ref.getDownloadURL().timeout(const Duration(seconds: 15));
-      } catch (storageError) {
-        throw Exception(
-            'No se pudo subir el PDF. Cloudinary: $cloudinaryError; '
-            'Firebase Storage: $storageError');
-      }
-    }
+    final safeFilename = filename.replaceAll(RegExp(r'[^\w.-]'), '_');
+    final ref = _storage.ref(
+        'registros_medicos/${DateTime.now().microsecondsSinceEpoch}_$safeFilename');
+    final task = ref.putData(
+      bytes,
+      SettableMetadata(
+        contentType: 'application/pdf',
+        contentDisposition: 'inline; filename="$safeFilename"',
+      ),
+    );
+    await task.timeout(const Duration(seconds: 40));
+    return ref.getDownloadURL().timeout(const Duration(seconds: 15));
   }
 
   static Stream<List<Dog>> dogs() => _db

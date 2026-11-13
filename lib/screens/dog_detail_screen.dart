@@ -638,8 +638,24 @@ class DogDetailScreen extends StatelessWidget {
   Future<void> _openMedicalDocument(
       BuildContext context, String documentUrl) async {
     try {
+      final uri = Uri.parse(documentUrl);
+      if (uri.host == 'res.cloudinary.com' &&
+          uri.pathSegments.contains('raw')) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Este PDF tiene el acceso bloqueado en Cloudinary. '
+                'Vuelve a adjuntarlo en una nueva entrada médica.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
       final opened = await launchUrl(
-        Uri.parse(documentUrl),
+        uri,
         mode: LaunchMode.externalApplication,
       );
       if (!opened && context.mounted) {
