@@ -12,8 +12,8 @@ import 'package:http/http.dart' as http;
 class CloudinaryService {
   // Configuración de Cloudinary:
   // Puedes reemplazar estos valores con los de tu cuenta de Cloudinary.
-  static String cloudName = 'pawtrack';
-  static String uploadPreset = 'pawtrack_unsigned';
+  static String cloudName = 'g3o3qo25';
+  static String uploadPreset = 'pawtrack';
 
   /// URL base de la API REST de Cloudinary
   static String get _uploadUrl =>
@@ -83,3 +83,4 @@ class CloudinaryService {
     }
   }
 }
+
