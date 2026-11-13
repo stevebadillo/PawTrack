@@ -1288,12 +1288,47 @@ class _ReportSheetState extends State<ReportSheet> {
             const Text('Evidencia', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0B2545))),
             const SizedBox(height: 10),
             if (hasPhoto)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: SizedBox(
-                  width: 90,
-                  height: 90,
-                  child: reportPhoto(r, width: 90, height: 90),
+              GestureDetector(
+                onTap: () => _showPhotoViewer(context, r),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    width: double.infinity,
+                    height: 220,
+                    color: const Color(0xFFF1F5F9),
+                    foregroundDecoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: reportPhoto(r, fit: BoxFit.contain),
+                        ),
+                        Positioned(
+                          right: 10,
+                          bottom: 10,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(.62),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.zoom_in, color: Colors.white, size: 17),
+                                SizedBox(width: 5),
+                                Text('Ampliar', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               )
             else
@@ -1546,35 +1581,73 @@ class _ReportSheetState extends State<ReportSheet> {
       ],
     );
   }
+
+  void _showPhotoViewer(BuildContext context, Report report) {
+    showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withOpacity(.88),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(12),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 1,
+              maxScale: 4,
+              boundaryMargin: const EdgeInsets.all(48),
+              child: Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: reportPhoto(report, fit: BoxFit.contain),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                onPressed: () => Navigator.pop(context),
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black54,
+                  foregroundColor: Colors.white,
+                ),
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // Helper image widgets
-Widget _reportImage(String url, {double? width, double? height}) {
+Widget _reportImage(String url, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
   if (url.isEmpty) return _missingImage(width: width, height: height);
   return Image.network(
     url,
     width: width,
     height: height,
-    fit: BoxFit.cover,
+    fit: fit,
     errorBuilder: (_, __, ___) => _missingImage(width: width, height: height),
   );
 }
 
-Widget reportPhoto(Report report, {double? width, double? height}) {
+Widget reportPhoto(Report report, {double? width, double? height, BoxFit fit = BoxFit.cover}) {
   if (report.photoBase64.isNotEmpty) {
     try {
       return Image.memory(
         base64Decode(report.photoBase64),
         width: width,
         height: height,
-        fit: BoxFit.cover,
+        fit: fit,
         errorBuilder: (_, __, ___) => _missingImage(width: width, height: height),
       );
     } catch (_) {
       return _missingImage(width: width, height: height);
     }
   }
-  return _reportImage(report.photoUrl, width: width, height: height);
+  return _reportImage(report.photoUrl, width: width, height: height, fit: fit);
 }
 
 Widget _missingImage({double? width, double? height}) => Container(

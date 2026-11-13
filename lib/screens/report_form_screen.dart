@@ -342,12 +342,15 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.memory(
-                    _photo!,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
                     width: double.infinity,
                     height: 170,
-                    fit: BoxFit.cover,
+                    color: const Color(0xFFF1F5F9),
+                    child: Image.memory(
+                      _photo!,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
                 Positioned(

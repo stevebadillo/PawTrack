@@ -3,9 +3,14 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
 import 'dog_detail_screen.dart';
+import 'medical_entry_screen.dart';
+import 'vaccine_form_screen.dart';
+
+final _dateFmt = DateFormat('dd/MM/yyyy');
 
 /// Registro de perros (RF04) - solo personal.
 class DogFormScreen extends StatefulWidget {
@@ -23,21 +28,14 @@ class _DogFormScreenState extends State<DogFormScreen> {
   final _desc = TextEditingController();
   final _age = TextEditingController(text: '3');
   final _allergies = TextEditingController(text: 'Ninguna conocida');
-  final _initialMedical = TextEditingController();
-  final _initialVaccineNotes = TextEditingController();
-  static const _vaccineTypes = [
-    'Rabia',
-    'Parvovirus',
-    'Desparasitación',
-    'Moquillo',
-    'Polivalente (Séxtuple)',
-    'Otro tratamiento',
-  ];
-  String? _initialVaccine;
   String _sex = 'Macho';
   bool _collar = false, _sterilized = false, _saving = false;
   double _uploadProgress = 0;
   Uint8List? _photo;
+
+  // Inline medical entries and vaccines collected before saving the dog
+  final List<Map<String, dynamic>> _medicalEntries = [];
+  final List<Map<String, dynamic>> _vaccineEntries = [];
 
   @override
   void initState() {
@@ -62,8 +60,6 @@ class _DogFormScreenState extends State<DogFormScreen> {
     _desc.dispose();
     _age.dispose();
     _allergies.dispose();
-    _initialMedical.dispose();
-    _initialVaccineNotes.dispose();
     super.dispose();
   }
 
@@ -100,6 +96,32 @@ class _DogFormScreenState extends State<DogFormScreen> {
     }
   }
 
+  // ── Medical entry screen navigation ──
+  Future<void> _addMedicalEntry() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MedicalEntryScreen(dogName: _name.text.trim()),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() => _medicalEntries.add(result));
+    }
+  }
+
+  // ── Vaccine screen navigation ──
+  Future<void> _addVaccineEntry() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VaccineFormScreen(dogName: _name.text.trim()),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() => _vaccineEntries.add(result));
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -126,26 +148,64 @@ class _DogFormScreenState extends State<DogFormScreen> {
       };
       String dogId;
       if (widget.dog == null) {
-        final medicalText = _initialMedical.text.trim();
+        // Pass the first medical entry and first vaccine via addDog batch.
+        // Additional entries are saved after creation.
+        final firstMedical = _medicalEntries.isNotEmpty
+            ? {
+                'title': _medicalEntries.first['title'] as String,
+                'description': _medicalEntries.first['description'] as String,
+                'date': Timestamp.fromDate(
+                    _medicalEntries.first['date'] as DateTime),
+                'vetOrClinic':
+                    _medicalEntries.first['vetOrClinic'] as String? ?? '',
+                'diagnosis':
+                    _medicalEntries.first['diagnosis'] as String? ?? '',
+                'treatment':
+                    _medicalEntries.first['treatment'] as String? ?? '',
+                'createdAt': FieldValue.serverTimestamp(),
+              }
+            : null;
+        final firstVaccine = _vaccineEntries.isNotEmpty
+            ? {
+                'name': _vaccineEntries.first['name'] as String,
+                'appliedAt': Timestamp.fromDate(
+                    _vaccineEntries.first['appliedAt'] as DateTime),
+                'nextDate': _vaccineEntries.first['nextDate'] != null
+                    ? Timestamp.fromDate(
+                        _vaccineEntries.first['nextDate'] as DateTime)
+                    : null,
+                'notes': _vaccineEntries.first['notes'] as String? ?? '',
+              }
+            : null;
+
         dogId = await DataService.addDog(
           data,
-          initialMedicalEntry: medicalText.isEmpty
-              ? null
-              : {
-                  'title': 'Historial médico inicial',
-                  'description': medicalText,
-                  'date': Timestamp.fromDate(DateTime.now()),
-                  'createdAt': FieldValue.serverTimestamp(),
-                },
-          initialVaccine: _initialVaccine == null
-              ? null
-              : {
-                  'name': _initialVaccine,
-                  'appliedAt': Timestamp.fromDate(DateTime.now()),
-                  'nextDate': null,
-                  'notes': _initialVaccineNotes.text.trim(),
-                },
+          initialMedicalEntry: firstMedical,
+          initialVaccine: firstVaccine,
         );
+
+        // Save remaining entries (index 1+)
+        for (var i = 1; i < _medicalEntries.length; i++) {
+          final e = _medicalEntries[i];
+          await DataService.addMedicalEntry(dogId, {
+            'title': e['title'],
+            'description': e['description'],
+            'date': e['date'],
+            'vetOrClinic': e['vetOrClinic'] ?? '',
+            'diagnosis': e['diagnosis'] ?? '',
+            'treatment': e['treatment'] ?? '',
+          });
+        }
+        for (var i = 1; i < _vaccineEntries.length; i++) {
+          final v = _vaccineEntries[i];
+          await DataService.addVaccine(
+            dogId,
+            v['name'] as String,
+            v['appliedAt'] as DateTime,
+            v['nextDate'] as DateTime?,
+            v['notes'] as String? ?? '',
+          );
+        }
       } else {
         await DataService.updateDog(widget.dog!.id, data);
         dogId = widget.dog!.id;
@@ -196,246 +256,517 @@ class _DogFormScreenState extends State<DogFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final isNew = widget.dog == null;
     return Scaffold(
-      appBar: AppBar(
-          title: Text(widget.dog == null ? 'Registrar perro' : 'Editar perro')),
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(66),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            child: Row(
+              children: [
+                InkWell(
+                  onTap: () => Navigator.pop(context),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.chevron_left_rounded,
+                          color: Color(0xFF0F2B48), size: 26),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Text(
+                  isNew ? 'Añadir perro' : 'Editar perro',
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F2B48),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 120),
           children: [
-            Text(widget.dog == null ? 'Nuevo integrante' : 'Editar ficha',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 6),
-            Text(
-                'Completa la información para agregarlo al catálogo del campus.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(color: colors.onSurfaceVariant)),
-            const SizedBox(height: 18),
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: SizedBox(
-                        height: 190,
-                        child: _photo == null
-                            ? ColoredBox(
-                                color: colors.surfaceContainerHighest,
-                                child: Icon(Icons.add_a_photo_outlined,
-                                    size: 44, color: colors.primary),
-                              )
-                            : Image.memory(_photo!, fit: BoxFit.cover),
-                      ),
+            // ── FOTO ──
+            _sectionLabel('Foto'),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  ClipRRect(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(20)),
+                    child: SizedBox(
+                      height: 160,
+                      width: double.infinity,
+                      child: _photo != null
+                          ? Image.memory(_photo!, fit: BoxFit.cover)
+                          : Container(
+                              color: const Color(0xFFF1F5FB),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.pets,
+                                      size: 40, color: Color(0xFF93C5FD)),
+                                  SizedBox(height: 6),
+                                  Text('Añade una foto del perro',
+                                      style: TextStyle(
+                                          color: Color(0xFF94A3B8),
+                                          fontSize: 12)),
+                                ],
+                              ),
+                            ),
                     ),
-                    Row(
+                  ),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
                       children: [
                         Expanded(
-                          child: TextButton.icon(
-                            onPressed: _saving
+                          child: _actionChip(
+                            icon: Icons.camera_alt_outlined,
+                            label: 'Cámara',
+                            onTap: _saving
                                 ? null
                                 : () => _pick(ImageSource.camera),
-                            icon: const Icon(Icons.camera_alt_outlined),
-                            label: const Text('Cámara'),
                           ),
                         ),
+                        const SizedBox(width: 10),
                         Expanded(
-                          child: TextButton.icon(
-                            onPressed: _saving
+                          child: _actionChip(
+                            icon: Icons.photo_library_outlined,
+                            label: 'Galería',
+                            onTap: _saving
                                 ? null
                                 : () => _pick(ImageSource.gallery),
-                            icon: const Icon(Icons.photo_library_outlined),
-                            label: const Text('Galería'),
                           ),
                         ),
                       ],
                     ),
-                    Text(
-                        'La foto es opcional. Para guardarla, Firebase Storage debe estar habilitado.',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: colors.onSurfaceVariant)),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 18),
-            Text('Datos del perro',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w800)),
-            const SizedBox(height: 10),
-            TextFormField(
+            const SizedBox(height: 22),
+
+            // ── IDENTIFICACIÓN ──
+            _sectionLabel('Identificación'),
+            _inputField(
               controller: _name,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                  labelText: 'Nombre', prefixIcon: Icon(Icons.pets_outlined)),
-              validator: (value) => value == null || value.trim().isEmpty
+              hint: 'Nombre del perro',
+              icon: Icons.pets_outlined,
+              validator: (v) => v == null || v.trim().isEmpty
                   ? 'El nombre es obligatorio.'
                   : null,
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: _sex,
-              decoration: const InputDecoration(
-                  labelText: 'Sexo', prefixIcon: Icon(Icons.wc_outlined)),
-              items: const [
-                DropdownMenuItem(value: 'Macho', child: Text('Macho')),
-                DropdownMenuItem(value: 'Hembra', child: Text('Hembra')),
-              ],
-              onChanged: _saving
-                  ? null
-                  : (value) => setState(() => _sex = value ?? _sex),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _color,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                  labelText: 'Color y rasgos',
-                  prefixIcon: Icon(Icons.palette_outlined)),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
+            _inputField(
               controller: _age,
+              hint: '3',
+              icon: Icons.cake_outlined,
+              label: 'Edad aproximada',
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Edad aproximada (años)',
-                prefixIcon: Icon(Icons.cake_outlined),
-              ),
-              validator: (value) {
-                final age = int.tryParse(value?.trim() ?? '');
+              validator: (v) {
+                final age = int.tryParse(v?.trim() ?? '');
                 return age == null || age < 0 || age > 40
                     ? 'Ingresa una edad entre 0 y 40 años.'
                     : null;
               },
             ),
             const SizedBox(height: 12),
-            TextFormField(
+            _inputField(
               controller: _allergies,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                labelText: 'Alergias o condiciones',
-                prefixIcon: Icon(Icons.health_and_safety_outlined),
-              ),
+              hint: 'Ninguna conocida',
+              icon: Icons.health_and_safety_outlined,
+              label: 'Alergias o condiciones',
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 22),
+
+            // ── SEXO ──
+            _sectionLabel('Sexo'),
+            _toggleRow(
+              options: const ['Macho', 'Hembra'],
+              selected: _sex,
+              onChanged: (v) => setState(() => _sex = v),
+            ),
+            const SizedBox(height: 22),
+
+            // ── COLLAR ──
+            _sectionLabel('Collar'),
+            _toggleRow(
+              options: const ['Rojo', 'Sin collar'],
+              selected: _collar ? 'Rojo' : 'Sin collar',
+              onChanged: (v) => setState(() => _collar = v == 'Rojo'),
+            ),
+            const SizedBox(height: 22),
+
+            // ── DESCRIPCIÓN ──
+            _sectionLabel('Descripción'),
             TextFormField(
               controller: _desc,
               maxLines: 3,
               textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                  labelText: 'Descripción o zona habitual',
-                  alignLabelWithHint: true),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              margin: EdgeInsets.zero,
-              child: SwitchListTile.adaptive(
-                title: const Text('Tiene collar rojo'),
-                subtitle: const Text('Ayuda a identificarlo en el campus.'),
-                secondary: Icon(Icons.circle,
-                    size: 17, color: _collar ? Colors.red : colors.outline),
-                value: _collar,
-                onChanged:
-                    _saving ? null : (value) => setState(() => _collar = value),
+              decoration: InputDecoration(
+                hintText: 'Rasgos, carácter, dónde suele estar',
+                hintStyle:
+                    const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                fillColor: Colors.white,
+                filled: true,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
               ),
             ),
-            Card(
-              margin: const EdgeInsets.only(top: 8),
+            const SizedBox(height: 22),
+
+            // ── DATOS MÉDICOS ──
+            _sectionLabel('Datos médicos'),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
               child: SwitchListTile.adaptive(
-                title: const Text('Esterilizado'),
+                title: const Text('Esterilizado',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: Color(0xFF0B2545))),
                 value: _sterilized,
+                activeColor: const Color(0xFF0D3B73),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
                 onChanged: _saving
                     ? null
                     : (value) => setState(() => _sterilized = value),
               ),
             ),
-            if (widget.dog == null) ...[
-              const SizedBox(height: 12),
-              ExpansionTile(
-                initiallyExpanded: true,
-                tilePadding: const EdgeInsets.symmetric(horizontal: 4),
-                title: const Text('Historial médico y vacunas (opcional)'),
-                childrenPadding: const EdgeInsets.only(bottom: 8),
-                children: [
-                  TextFormField(
-                    controller: _initialMedical,
-                    enabled: !_saving,
-                    maxLines: 3,
-                    textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Historial médico inicial',
-                      alignLabelWithHint: true,
-                      prefixIcon: Icon(Icons.medical_services_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: _initialVaccine,
-                    decoration: const InputDecoration(
-                      labelText: 'Vacuna aplicada',
-                      prefixIcon: Icon(Icons.vaccines_outlined),
-                    ),
-                    hint: const Text('Selecciona una vacuna (opcional)'),
-                    items: _vaccineTypes
-                        .map((name) => DropdownMenuItem(
-                              value: name,
-                              child: Text(name),
-                            ))
-                        .toList(),
-                    onChanged: _saving
-                        ? null
-                        : (value) => setState(() => _initialVaccine = value),
-                  ),
-                  if (_initialVaccine != null) ...[
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _initialVaccineNotes,
-                      enabled: !_saving,
-                      textCapitalization: TextCapitalization.sentences,
-                      decoration: const InputDecoration(
-                        labelText: 'Notas de la vacuna',
-                        prefixIcon: Icon(Icons.notes_outlined),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+            const SizedBox(height: 12),
+
+            // ── "+ Añadir a historial médico" button ──
+            _addEntryButton(
+              icon: Icons.add,
+              label: 'Añadir a historial médico',
+              onTap: _saving ? null : _addMedicalEntry,
+            ),
+
+            // Show added medical entries
+            if (_medicalEntries.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              for (var i = 0; i < _medicalEntries.length; i++)
+                _entryChip(
+                  icon: Icons.medical_services_outlined,
+                  title: _medicalEntries[i]['title'] as String,
+                  subtitle:
+                      _dateFmt.format(_medicalEntries[i]['date'] as DateTime),
+                  onRemove: () =>
+                      setState(() => _medicalEntries.removeAt(i)),
+                ),
             ],
-            const SizedBox(height: 8),
-            const SizedBox(height: 20),
-            FilledButton.icon(
+            const SizedBox(height: 22),
+
+            // ── VACUNAS APLICADAS ──
+            _sectionLabel('Vacunas aplicadas'),
+            _addEntryButton(
+              icon: Icons.add,
+              label: 'Añadir vacuna',
+              onTap: _saving ? null : _addVaccineEntry,
+            ),
+
+            // Show added vaccines
+            if (_vaccineEntries.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              for (var i = 0; i < _vaccineEntries.length; i++)
+                _entryChip(
+                  icon: Icons.vaccines_outlined,
+                  title: _vaccineEntries[i]['name'] as String,
+                  subtitle: _dateFmt
+                      .format(_vaccineEntries[i]['appliedAt'] as DateTime),
+                  onRemove: () =>
+                      setState(() => _vaccineEntries.removeAt(i)),
+                ),
+            ],
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+      // ── BOTTOM BAR: Guardar perro ──
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 52,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF0D3B73),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(25)),
+              ),
               onPressed: _saving ? null : _save,
               icon: _saving
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.save_outlined),
-              label: Text(_saving
-                  ? _photo != null
-                      ? 'Subiendo foto ${(100 * _uploadProgress).round()}%…'
-                      : 'Guardando…'
-                  : widget.dog == null
-                      ? 'Guardar perro'
-                      : 'Guardar cambios'),
+                      child:
+                          CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.check_rounded, size: 20),
+              label: Text(
+                _saving
+                    ? _photo != null
+                        ? 'Subiendo foto ${(100 * _uploadProgress).round()}%…'
+                        : 'Guardando…'
+                    : isNew
+                        ? 'Guardar perro'
+                        : 'Guardar cambios',
+                style:
+                    const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Helper widgets ──
+
+  Widget _sectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFF0B2545),
+        ),
+      ),
+    );
+  }
+
+  Widget _inputField({
+    required TextEditingController controller,
+    required String hint,
+    IconData? icon,
+    String? label,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textCapitalization: TextCapitalization.words,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+        prefixIcon: icon != null
+            ? Icon(icon, size: 20, color: const Color(0xFF64748B))
+            : null,
+        fillColor: Colors.white,
+        filled: true,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+      ),
+    );
+  }
+
+  Widget _toggleRow({
+    required List<String> options,
+    required String selected,
+    required ValueChanged<String> onChanged,
+  }) {
+    return Row(
+      children: [
+        for (var i = 0; i < options.length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(
+            child: GestureDetector(
+              onTap: _saving ? null : () => onChanged(options[i]),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: selected == options[i]
+                      ? const Color(0xFF0D3B73)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(25),
+                  border: Border.all(
+                    color: selected == options[i]
+                        ? const Color(0xFF0D3B73)
+                        : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (selected == options[i])
+                      const Padding(
+                        padding: EdgeInsets.only(right: 6),
+                        child:
+                            Icon(Icons.check, size: 16, color: Colors.white),
+                      ),
+                    Text(
+                      options[i],
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5,
+                        color: selected == options[i]
+                            ? Colors.white
+                            : const Color(0xFF0B2545),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _actionChip({
+    required IconData icon,
+    required String label,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D3B73),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 6),
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12.5)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _addEntryButton({
+    required IconData icon,
+    required String label,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFF93C5FD), width: 1.2),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: const Color(0xFF2563EB), size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF2563EB),
+                fontWeight: FontWeight.w700,
+                fontSize: 13.5,
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _entryChip({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onRemove,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F9FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFBAE6FD)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFF0D3B73)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: Color(0xFF0B2545))),
+                Text(subtitle,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF64748B))),
+              ],
+            ),
+          ),
+          InkWell(
+            onTap: onRemove,
+            borderRadius: BorderRadius.circular(20),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.close, size: 16, color: Color(0xFFDC2626)),
+            ),
+          ),
+        ],
       ),
     );
   }

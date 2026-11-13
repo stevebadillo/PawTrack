@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
+import '../services/dog_fact_service.dart';
 import 'contacts_screen.dart';
 import 'reports_screen.dart';
 
@@ -235,6 +236,12 @@ class DashboardScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
+
+            // Bloque exclusivo para estudiantes: Dog Facts API & Recomendaciones Educativas
+            if (!user.isStaff) ...[
+              const _StudentEducationSection(),
+              const SizedBox(height: 24),
+            ],
 
             // Bloque 4: Encabezado de la sección "Actividad reciente"
             Row(
@@ -715,6 +722,249 @@ class _MapBackgroundPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+// ============================================================================
+// SECCIÓN EDUCATIVA Y DOG FACTS API (EXCLUSIVA PARA ESTUDIANTES)
+// Muestra curiosidades caninas obtenidas de Dog Facts API y recomendaciones
+// para la convivencia y cuidado de los perros en el campus universitario.
+// ============================================================================
+class _StudentEducationSection extends StatefulWidget {
+  const _StudentEducationSection();
+
+  @override
+  State<_StudentEducationSection> createState() => _StudentEducationSectionState();
+}
+
+class _StudentEducationSectionState extends State<_StudentEducationSection> {
+  String? _fact;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFact();
+  }
+
+  Future<void> _loadFact() async {
+    setState(() => _loading = true);
+    final fact = await DogFactService.fetchFact();
+    if (mounted) {
+      setState(() {
+        _fact = fact;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final recommendations = DogFactService.getRecommendations();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Encabezado de la sección
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.lightbulb_outline_rounded,
+                    color: Color(0xFF1E5BB0),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Dato curioso del día',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0B2545),
+                  ),
+                ),
+              ],
+            ),
+            IconButton(
+              tooltip: 'Cargar otro dato',
+              icon: _loading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(
+                      Icons.refresh_rounded,
+                      color: Color(0xFF1E5BB0),
+                      size: 20,
+                    ),
+              onPressed: _loading ? null : _loadFact,
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        // Tarjeta principal con la curiosidad de la API
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF0B2545).withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'DOG FACTS API',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.pets, size: 16, color: Color(0xFF94A3B8)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              AnimatedCrossFade(
+                firstChild: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Center(
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ),
+                secondChild: Text(
+                  _fact ?? 'Cargando curiosidad canina...',
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.45,
+                    color: Color(0xFF1E293B),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                crossFadeState: _loading
+                    ? CrossFadeState.showFirst
+                    : CrossFadeState.showSecond,
+                duration: const Duration(milliseconds: 250),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Subtítulo de recomendaciones
+        const Text(
+          'Recomendaciones y cuidado en el campus',
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF0B2545),
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // Carrusel horizontal de recomendaciones educativas
+        SizedBox(
+          height: 130,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: recommendations.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final item = recommendations[index];
+              return Container(
+                width: 230,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          item['icon'] == 'restaurant'
+                              ? Icons.restaurant_outlined
+                              : item['icon'] == 'hotel'
+                                  ? Icons.hotel_outlined
+                                  : item['icon'] == 'health_and_safety'
+                                      ? Icons.health_and_safety_outlined
+                                      : Icons.pets_outlined,
+                          size: 18,
+                          color: const Color(0xFF0D3B73),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            item['title']!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0B2545),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: Text(
+                        item['desc']!,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          height: 1.35,
+                          color: Color(0xFF64748B),
+                        ),
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+
 class _ContactsCardBackground extends StatelessWidget {
   const _ContactsCardBackground();
 
@@ -776,3 +1026,6 @@ class _HeroRipplePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+
+

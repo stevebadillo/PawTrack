@@ -4,8 +4,9 @@ import '../models/models.dart';
 import '../services/data_service.dart';
 
 class MedicalEntryScreen extends StatefulWidget {
-  final Dog dog;
-  const MedicalEntryScreen({super.key, required this.dog});
+  final Dog? dog;
+  final String? dogName;
+  const MedicalEntryScreen({super.key, this.dog, this.dogName});
 
   @override
   State<MedicalEntryScreen> createState() => _MedicalEntryScreenState();
@@ -44,25 +45,25 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
   }
 
   Future<void> _pickNextVisit() async {
-  final d = await showDatePicker(
-    context: context,
-    initialDate: _date.add(const Duration(days: 14)),
-    firstDate: _date,
-    lastDate: DateTime.now().add(const Duration(days: 365)),
-  );
-  if (d == null) return;
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _date.add(const Duration(days: 14)),
+      firstDate: _date,
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (d == null) return;
 
-  if (!mounted) return;
-  final t = await showTimePicker(
-    context: context,
-    initialTime: const TimeOfDay(hour: 10, minute: 0),
-  );
-  if (t == null) return;
+    if (!mounted) return;
+    final t = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 10, minute: 0),
+    );
+    if (t == null) return;
 
-  setState(() {
-    _nextVisit = DateTime(d.year, d.month, d.day, t.hour, t.minute);
-  });
-}
+    setState(() {
+      _nextVisit = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+    });
+  }
 
   Future<void> _save() async {
     if (_title.text.trim().isEmpty || _desc.text.trim().isEmpty) {
@@ -74,21 +75,29 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
 
     setState(() => _saving = true);
     try {
-      await DataService.addMedicalEntry(widget.dog.id, {
+      final entryData = {
         'title': _title.text.trim(),
         'description': _desc.text.trim(),
         'date': _date,
         'vetOrClinic': _vet.text.trim(),
         'diagnosis': _diagnosis.text.trim(),
         'treatment': _treatment.text.trim(),
-        'nextVisit': _nextVisit?.toIso8601String(),
-      });
+        'nextVisit': _nextVisit, 
+      };
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Entrada médica guardada con éxito.')),
-        );
-        Navigator.pop(context);
+      if (widget.dog != null) {
+        await DataService.addMedicalEntry(widget.dog!.id, entryData);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Entrada médica guardada con éxito.')),
+          );
+          Navigator.pop(context);
+        }
+      } else {
+        // Modo retorno de datos para creación de perro
+        if (mounted) {
+          Navigator.pop(context, entryData);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -97,6 +106,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
