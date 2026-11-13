@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
@@ -29,6 +30,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   double? _lat = -1.65595;
   double? _lng = -78.67508;
   bool _saving = false;
+  bool _checkingPhoto = false;
   String? _locError;
 
   // Opciones seleccionadas de estado del perro y tipo de incidencia
@@ -44,8 +46,13 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   @override
   void dispose() {
     _desc.dispose();
+    _labeler.close();
     super.dispose();
   }
+
+  final ImageLabeler _labeler = ImageLabeler(
+    options: ImageLabelerOptions(confidenceThreshold: 0.65),
+  );
 
   Future<void> _locate() async {
     try {
@@ -71,13 +78,34 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         maxHeight: 1280,
       );
       if (x != null) {
+        if (mounted) setState(() => _checkingPhoto = true);
+        final labels = await _labeler.processImage(InputImage.fromFilePath(x.path));
+        final isDog = labels.any((label) {
+          final name = label.label.toLowerCase();
+          return (name == 'dog' || name == 'perro') && label.confidence >= 0.65;
+        });
+
+        if (!isDog) {
+          if (mounted) {
+            setState(() => _checkingPhoto = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('La imagen debe mostrar claramente un canino.')),
+            );
+          }
+          return;
+        }
+
         final bytes = await x.readAsBytes();
-        if (mounted) setState(() => _photo = bytes);
+        if (mounted) setState(() {
+          _photo = bytes;
+          _checkingPhoto = false;
+        });
       }
     } catch (_) {
       if (mounted) {
+        setState(() => _checkingPhoto = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo acceder a la cámara o galería.')),
+          const SnackBar(content: Text('No se pudo analizar la imagen. Intenta con otra foto.')),
         );
       }
     }
@@ -405,7 +433,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 11),
                   ),
-                  onPressed: () => _pick(ImageSource.camera),
+                  onPressed: _checkingPhoto ? null : () => _pick(ImageSource.camera),
                   icon: const Icon(Icons.camera_alt_outlined, size: 18),
                   label: const Text('Cámara', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                 ),
@@ -419,7 +447,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 11),
                   ),
-                  onPressed: () => _pick(ImageSource.gallery),
+                  onPressed: _checkingPhoto ? null : () => _pick(ImageSource.gallery),
                   icon: const Icon(Icons.photo_library_outlined, size: 18),
                   label: const Text('Galería', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                 ),

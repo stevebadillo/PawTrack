@@ -41,6 +41,12 @@ android {
     }
 }
 
+// ML Kit trae una dependencia antigua de Firebase (firebase-iid) que entra
+// en conflicto con la versión moderna usada por firebase_messaging.
+configurations.all {
+    exclude(group = "com.google.firebase", module = "firebase-iid")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
