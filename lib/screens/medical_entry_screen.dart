@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
@@ -70,60 +69,28 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
   }
 
   Future<void> _addAttachment() async {
-    final choice = await showModalBottomSheet<_AttachmentType>(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_outlined),
-              title: const Text('Añadir fotografía'),
-              onTap: () => Navigator.pop(context, _AttachmentType.photo),
-            ),
-            ListTile(
-              leading: const Icon(Icons.picture_as_pdf_outlined),
-              title: const Text('Añadir PDF'),
-              onTap: () => Navigator.pop(context, _AttachmentType.pdf),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (choice == null || !mounted) return;
-
     try {
-      if (choice == _AttachmentType.photo) {
-        final image = await ImagePicker().pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 70,
-          maxWidth: 1600,
-          maxHeight: 1600,
-        );
-        if (image == null) return;
-        final bytes = await image.readAsBytes();
-        _validateAttachmentSize(bytes);
-        if (mounted) {
-          setState(() => _attachments.add(
-                _MedicalAttachment(
-                    name: image.name, bytes: bytes, isPdf: false),
-              ));
-        }
-        return;
-      }
-
       final file = await FilePicker.pickFile(
+        dialogTitle: 'Selecciona una fotografía o PDF',
         type: FileType.custom,
-        allowedExtensions: ['pdf'],
+        allowedExtensions: const ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
       );
       if (file == null) return;
+      final extension = file.extension?.toLowerCase();
+      final isPdf = extension == 'pdf';
+      if (!isPdf && !const {'jpg', 'jpeg', 'png', 'webp'}.contains(extension)) {
+        throw const FormatException(
+            'Selecciona una fotografía JPG, PNG o WebP, o un PDF.');
+      }
+
       final bytes = await file.readAsBytes();
       _validateAttachmentSize(bytes);
-      if (String.fromCharCodes(bytes.take(5)) != '%PDF-') {
+      if (isPdf && String.fromCharCodes(bytes.take(5)) != '%PDF-') {
         throw FormatException('${file.name} no es un PDF válido.');
       }
       if (mounted) {
         setState(() => _attachments.add(
-              _MedicalAttachment(name: file.name, bytes: bytes, isPdf: true),
+              _MedicalAttachment(name: file.name, bytes: bytes, isPdf: isPdf),
             ));
       }
     } catch (error) {
@@ -168,6 +135,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
             : await DataService.uploadPhoto(
                 attachment.bytes,
                 'registros_medicos',
+                filename: attachment.name,
               );
         documents.add(url);
       }
@@ -521,8 +489,6 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
     );
   }
 }
-
-enum _AttachmentType { photo, pdf }
 
 class _MedicalAttachment {
   final String name;

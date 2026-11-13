@@ -26,6 +26,7 @@ class DataService {
   static Future<String> uploadPhoto(
     Uint8List bytes,
     String folder, {
+    String? filename,
     void Function(double progress)? onProgress,
   }) async {
     if (bytes.isEmpty) throw ArgumentError('La imagen está vacía.');
@@ -35,17 +36,25 @@ class DataService {
       final cloudinaryUrl = await CloudinaryService.uploadImage(
         bytes,
         folder: folder,
+        filename: filename,
         onProgress: onProgress,
       );
       return cloudinaryUrl;
     } catch (cloudinaryError) {
       // 2. Si falla Cloudinary, intentar Firebase Storage como respaldo
       try {
-        final ref = _storage
-            .ref('$folder/${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final safeFilename = filename?.replaceAll(RegExp(r'[^\w.-]'), '_');
+        final extension = filename?.split('.').last.toLowerCase();
+        final contentType = switch (extension) {
+          'png' => 'image/png',
+          'webp' => 'image/webp',
+          _ => 'image/jpeg',
+        };
+        final ref = _storage.ref(
+            '$folder/${DateTime.now().millisecondsSinceEpoch}_${safeFilename ?? 'photo.jpg'}');
         final task = ref.putData(
           bytes,
-          SettableMetadata(contentType: 'image/jpeg'),
+          SettableMetadata(contentType: contentType),
         );
         final progressSubscription = task.snapshotEvents.listen((snapshot) {
           if (snapshot.totalBytes > 0) {

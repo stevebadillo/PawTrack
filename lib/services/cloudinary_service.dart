@@ -26,6 +26,7 @@ class CloudinaryService {
   static Future<String> uploadImage(
     Uint8List imageBytes, {
     String folder = 'canes',
+    String? filename,
     void Function(double progress)? onProgress,
   }) async {
     if (imageBytes.isEmpty) {
@@ -44,7 +45,8 @@ class CloudinaryService {
     final multipartFile = http.MultipartFile.fromBytes(
       'file',
       imageBytes,
-      filename: 'pawtrack_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      filename:
+          filename ?? 'pawtrack_${DateTime.now().millisecondsSinceEpoch}.jpg',
     );
     request.files.add(multipartFile);
 
