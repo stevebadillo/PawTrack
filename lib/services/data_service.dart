@@ -3,14 +3,13 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/models.dart';
+import 'cloudinary_service.dart';
 
 /// Acceso centralizado a las APIs de datos de PawTrack.
 ///
 /// - Cloud Firestore: usuarios, perros, vacunas, reportes y notificaciones.
-/// - Firebase Storage: actualmente almacena las fotos de perros.
-///
-/// Si se migra a Cloudinary, el método uploadPhoto será el punto principal a
-/// sustituir y Firestore podrá guardar solamente la URL resultante.
+/// - Cloudinary: almacenamiento principal de fotos en la nube (HTTP REST).
+/// - Firebase Storage: almacenamiento de respaldo opcional.
 class DataService {
   static final _db = FirebaseFirestore.instance;
   static final _storage = FirebaseStorage.instance;
@@ -22,38 +21,48 @@ class DataService {
   static const vaccineCollection = 'vacunas';
   static const reportCollection = 'reportes';
 
+  /// Sube la foto usando Cloudinary como proveedor principal.
+  /// Si Cloudinary falla por falta de configuración o red, intenta con Firebase Storage.
   static Future<String> uploadPhoto(
     Uint8List bytes,
     String folder, {
     void Function(double progress)? onProgress,
   }) async {
     if (bytes.isEmpty) throw ArgumentError('La imagen está vacía.');
-    if (bytes.length >= 5 * 1024 * 1024) {
-      throw ArgumentError('La imagen debe pesar menos de 5 MB.');
-    }
-    final ref =
-        _storage.ref('$folder/${DateTime.now().millisecondsSinceEpoch}.jpg');
-    final task = ref.putData(
-      bytes,
-      SettableMetadata(contentType: 'image/jpeg'),
-    );
-    final progressSubscription = task.snapshotEvents.listen((snapshot) {
-      if (snapshot.totalBytes > 0) {
-        onProgress?.call(snapshot.bytesTransferred / snapshot.totalBytes);
-      }
-    });
+
+    // 1. Intentar subir a Cloudinary primero
     try {
+      final cloudinaryUrl = await CloudinaryService.uploadImage(
+        bytes,
+        folder: folder,
+        onProgress: onProgress,
+      );
+      return cloudinaryUrl;
+    } catch (cloudinaryError) {
+      // 2. Si falla Cloudinary, intentar Firebase Storage como respaldo
       try {
-        await task.timeout(const Duration(seconds: 90));
-      } on TimeoutException {
-        await task.cancel();
-        throw TimeoutException(
-          'La carga tardó demasiado. Revisa Firebase Storage y la conexión.',
+        final ref = _storage.ref(
+            '$folder/${DateTime.now().millisecondsSinceEpoch}.jpg');
+        final task = ref.putData(
+          bytes,
+          SettableMetadata(contentType: 'image/jpeg'),
         );
+        final progressSubscription = task.snapshotEvents.listen((snapshot) {
+          if (snapshot.totalBytes > 0) {
+            onProgress?.call(snapshot.bytesTransferred / snapshot.totalBytes);
+          }
+        });
+        try {
+          await task.timeout(const Duration(seconds: 40));
+          return await ref.getDownloadURL().timeout(const Duration(seconds: 15));
+        } finally {
+          await progressSubscription.cancel();
+        }
+      } catch (_) {
+        // Relanzar el error informativo de Cloudinary para guiar la configuración
+        throw Exception(
+            'No se pudo subir la foto a Cloudinary: $cloudinaryError');
       }
-      return await ref.getDownloadURL().timeout(const Duration(seconds: 20));
-    } finally {
-      await progressSubscription.cancel();
     }
   }
 

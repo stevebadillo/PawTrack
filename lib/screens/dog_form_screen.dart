@@ -233,17 +233,15 @@ class _DogFormScreenState extends State<DogFormScreen> {
       if (mounted) {
         final message = switch (error) {
           FirebaseException(code: 'bucket-not-found') =>
-            'Firebase Storage no está inicializado. Créalo en la consola del proyecto y vuelve a intentarlo.',
+            'El almacenamiento no está configurado en Firebase.',
           FirebaseException(code: 'unauthorized' || 'unauthenticated') =>
-            'Firebase Storage rechazó el acceso. Revisa que la sesión esté activa y publica sus reglas.',
-          FirebaseException(code: 'retry-limit-exceeded') =>
-            'Se agotó el tiempo de carga. Revisa tu conexión e inténtalo de nuevo.',
+            'Acceso denegado. Revisa que la sesión esté activa.',
           TimeoutException() =>
-            'La carga de la foto excedió 90 segundos. Revisa Firebase Storage y la conexión.',
+            'La subida de la imagen tardó demasiado. Comprueba tu conexión.',
           ArgumentError() =>
             error.toString().replaceFirst('Invalid argument(s): ', ''),
           _ =>
-            'No se pudo guardar el perro. ${error is FirebaseException ? 'Firebase (${error.code}): ${error.message ?? ''}' : error}',
+            error.toString().replaceFirst('Exception: ', ''),
         };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
