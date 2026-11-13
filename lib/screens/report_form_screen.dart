@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -101,13 +100,13 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
 
     setState(() => _saving = true);
     try {
-      final photoB64 = base64Encode(_photo!);
+      final photoUrl = await DataService.uploadPhoto(_photo!, 'reportes');
       await DataService.addReport({
         'description': _desc.text.trim(),
-        'photoUrl': '',
-        'photoBase64': photoB64,
-        'photos': [photoB64],
-        'evidencias': [photoB64],
+        'photoUrl': photoUrl,
+        'photoBase64': '',
+        'photos': [photoUrl],
+        'evidencias': [photoUrl],
         'dogStatus': _dogStatus,
         'estadoPerro': _dogStatus,
         'incidentType': _incidentType,

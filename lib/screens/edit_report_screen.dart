@@ -100,10 +100,11 @@ class _EditReportScreenState extends State<EditReportScreen> {
       }
 
       if (_newPhoto != null) {
-        final b64 = base64Encode(_newPhoto!);
-        updates['photoBase64'] = b64;
-        updates['photos'] = [b64];
-        updates['evidencias'] = [b64];
+        final photoUrl = await DataService.uploadPhoto(_newPhoto!, 'reportes');
+        updates['photoUrl'] = photoUrl;
+        updates['photoBase64'] = '';
+        updates['photos'] = [photoUrl];
+        updates['evidencias'] = [photoUrl];
       } else if (_removeOriginalPhoto) {
         updates['photoBase64'] = '';
         updates['photoUrl'] = '';
@@ -736,4 +737,3 @@ class _EditReportScreenState extends State<EditReportScreen> {
     );
   }
 }
-
