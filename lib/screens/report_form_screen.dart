@@ -128,21 +128,18 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
 
     setState(() => _saving = true);
     try {
+      // Sube la fotografía a Cloudinary y guarda únicamente los campos
+      // estandarizados del reporte sin duplicar claves en español/inglés.
       final photoUrl = await DataService.uploadPhoto(_photo!, 'reportes');
       await DataService.addReport({
         'description': _desc.text.trim(),
         'photoUrl': photoUrl,
-        'photoBase64': '',
-        'photos': [photoUrl],
-        'evidencias': [photoUrl],
         'dogStatus': _dogStatus,
-        'estadoPerro': _dogStatus,
         'incidentType': _incidentType,
-        'tipoIncidencia': _incidentType,
         'lat': _lat ?? -1.65595,
         'lng': _lng ?? -78.67508,
-        'dogId': _dog?.id,
-        'dogName': _dog?.name,
+        if (_dog != null) 'dogId': _dog!.id,
+        if (_dog != null) 'dogName': _dog!.name,
         'reporterId': widget.user.uid,
         'reporterName': widget.user.name,
       });

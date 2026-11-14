@@ -72,11 +72,13 @@ service cloud.firestore {
     }
     match /notificaciones/{nId} {
       allow read: if signedIn() && (resource.data.userId == request.auth.uid || isStaff());
-      allow write: if isStaff();
+      allow create: if signedIn();
+      allow update, delete: if isStaff() || (signedIn() && resource.data.userId == request.auth.uid);
     }
     match /notifications/{nId} {
       allow read: if signedIn() && (resource.data.userId == request.auth.uid || isStaff());
-      allow write: if isStaff();
+      allow create: if signedIn();
+      allow update, delete: if isStaff() || (signedIn() && resource.data.userId == request.auth.uid);
     }
   }
 }

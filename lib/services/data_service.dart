@@ -199,13 +199,79 @@ class DataService {
       .map((s) => s.docs.map(Vaccine.fromDoc).toList());
 
   static Future<void> addVaccine(String dogId, String name, DateTime applied,
-          DateTime? next, String notes) =>
-      _db.collection('$dogCollection/$dogId/$vaccineCollection').add({
-        'name': name,
-        'appliedAt': Timestamp.fromDate(applied),
-        'nextDate': next == null ? null : Timestamp.fromDate(next),
-        'notes': notes,
-      });
+      DateTime? next, String notes) async {
+    final docRef =
+        await _db.collection('$dogCollection/$dogId/$vaccineCollection').add({
+      'name': name,
+      'appliedAt': Timestamp.fromDate(applied),
+      'nextDate': next == null ? null : Timestamp.fromDate(next),
+      'notes': notes,
+    });
+
+    if (next != null) {
+      try {
+        final dogDoc = await _db.collection(dogCollection).doc(dogId).get();
+        final dogName = dogDoc.data()?['name'] ??
+            dogDoc.data()?['nombre'] ??
+            'Perro del campus';
+        final dateStr =
+            '${next.day.toString().padLeft(2, '0')}/${next.month.toString().padLeft(2, '0')}/${next.year}';
+        await _db.collection('notificaciones').add({
+          'userId': 'personal',
+          'targetRole': 'personal',
+          'type': 'proxima_vacuna',
+          'dogId': dogId,
+          'vaccineId': docRef.id,
+          'title': 'Próxima vacunación: $dogName',
+          'body': 'Refuerzo de $name programado para el $dateStr.',
+          'nextDate': Timestamp.fromDate(next),
+          'isRead': false,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } catch (_) {}
+    }
+  }
+
+  /// Obtiene las vacunas con próxima fecha programada dentro de los próximos
+  /// [withinDays] días (incluyendo las que vencen hoy) sin requerir índices
+  /// compuestos especiales en Firestore.
+  static Stream<List<UpcomingVaccineAlert>> upcomingVaccines(
+      {int withinDays = 7}) {
+    return _db.collection(dogCollection).snapshots().asyncMap((dogsSnap) async {
+      final now = DateTime.now();
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      final limitDate = now.add(Duration(days: withinDays));
+      final alerts = <UpcomingVaccineAlert>[];
+
+      for (final dogDoc in dogsSnap.docs) {
+        final dog = Dog.fromDoc(dogDoc);
+        try {
+          final vacSnap =
+              await dogDoc.reference.collection(vaccineCollection).get();
+          for (final vDoc in vacSnap.docs) {
+            final v = Vaccine.fromDoc(vDoc);
+            if (v.nextDate != null &&
+                !v.nextDate!.isBefore(startOfToday) &&
+                !v.nextDate!.isAfter(limitDate)) {
+              alerts.add(
+                UpcomingVaccineAlert(
+                  dogId: dog.id,
+                  dogName: dog.name.isNotEmpty ? dog.name : 'Perro',
+                  vaccineId: v.id,
+                  vaccineName: v.name,
+                  nextDate: v.nextDate!,
+                  notes: v.notes,
+                ),
+              );
+            }
+          }
+        } catch (_) {}
+      }
+
+      alerts.sort((a, b) => a.nextDate.compareTo(b.nextDate));
+      return alerts;
+    });
+  }
 
   static Stream<List<Report>> reports({String? reporterId}) {
     Query q = _db.collection(reportCollection);
@@ -224,15 +290,69 @@ class DataService {
     });
   }
 
-  static Future<void> addReport(Map<String, dynamic> data) =>
-      _db.collection(reportCollection).add({
-        ...data,
-        'status': 'pendiente',
+  static Future<void> addReport(Map<String, dynamic> data) async {
+    final docRef = await _db.collection(reportCollection).add({
+      ...data,
+      'status': 'pendiente',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    // Registra la notificación para el personal en Firestore
+    try {
+      final dogLabel = (data['dogName'] as String?)?.isNotEmpty == true
+          ? data['dogName']
+          : 'Perro sin identificar';
+      final reporterName = (data['reporterName'] as String?)?.isNotEmpty == true
+          ? data['reporterName']
+          : 'Estudiante';
+      final desc = (data['description'] ?? '').toString();
+      await _db.collection('notificaciones').add({
+        'userId': 'personal',
+        'targetRole': 'personal',
+        'type': 'nuevo_reporte',
+        'reportId': docRef.id,
+        'title': 'Nuevo reporte: $dogLabel',
+        'body': '$reporterName reportó: "$desc"',
+        'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
+    } catch (_) {}
+  }
 
-  static Future<void> updateReportStatus(String id, String status) =>
-      _db.collection(reportCollection).doc(id).update({'status': status});
+  static Future<void> updateReportStatus(String id, String status) async {
+    await _db.collection(reportCollection).doc(id).update({
+      'status': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Registra la notificación de cambio de estado para el estudiante que reportó
+    try {
+      final reportDoc = await _db.collection(reportCollection).doc(id).get();
+      final rData = reportDoc.data();
+      if (rData != null) {
+        final reporterId = (rData['reporterId'] ?? rData['usuarioId'])?.toString();
+        final dogLabel = (rData['dogName'] ?? rData['perroNombre'])?.toString() ??
+            'Perro sin identificar';
+        final readableStatus = switch (status) {
+          'en_revision' || 'en_atencion' => 'En revisión',
+          'resuelto' => 'Resuelto',
+          _ => 'Pendiente',
+        };
+        if (reporterId != null && reporterId.isNotEmpty) {
+          await _db.collection('notificaciones').add({
+            'userId': reporterId,
+            'type': 'cambio_estado',
+            'reportId': id,
+            'title': 'Estado actualizado: $readableStatus',
+            'body':
+                'El reporte sobre $dogLabel cambió de estado a "$readableStatus".',
+            'isRead': false,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    } catch (_) {}
+  }
 
   static Future<void> updateReportDescription(String id, String description) =>
       _db
@@ -308,28 +428,31 @@ class DataService {
     ),
   ];
 
-  /// Notificaciones del usuario
-  static Stream<List<AppNotificationItem>> notifications(String userId) {
+  /// Notificaciones del usuario (en tiempo real desde 'notificaciones')
+  static Stream<List<AppNotificationItem>> notifications(String userId,
+      {bool isStaff = false}) {
+    final targets = isStaff ? <String>[userId, 'personal'] : <String>[userId];
     return _db
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
+        .collection('notificaciones')
+        .where('userId', whereIn: targets)
         .snapshots()
         .asyncMap((snap) async {
-      if (snap.docs.isNotEmpty) {
-        final list = snap.docs.map(AppNotificationItem.fromDoc).toList();
-        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        return list;
+      final byId = <String, AppNotificationItem>{};
+      for (final doc in snap.docs) {
+        byId[doc.id] = AppNotificationItem.fromDoc(doc);
       }
-      final alt = await _db
-          .collection('notificaciones')
-          .where('userId', isEqualTo: userId)
-          .get();
-      if (alt.docs.isNotEmpty) {
-        final list = alt.docs.map(AppNotificationItem.fromDoc).toList();
-        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        return list;
-      }
-      return <AppNotificationItem>[];
+      try {
+        final legacy = await _db
+            .collection('notifications')
+            .where('userId', whereIn: targets)
+            .get();
+        for (final doc in legacy.docs) {
+          byId.putIfAbsent(doc.id, () => AppNotificationItem.fromDoc(doc));
+        }
+      } catch (_) {}
+      final list = byId.values.toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
     });
   }
 }

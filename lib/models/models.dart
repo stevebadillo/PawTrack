@@ -276,7 +276,8 @@ class Contact {
 
 // ============================================================================
 // MODELO DE NOTIFICACIÓN (AppNotificationItem)
-// Representa un aviso o alerta enviada al usuario sobre el estado de reportes.
+// Representa un aviso o alerta enviada al usuario sobre nuevos reportes,
+// cambios de estado o próximas fechas de vacunación.
 // ============================================================================
 class AppNotificationItem {
   final String id;
@@ -285,6 +286,9 @@ class AppNotificationItem {
   final DateTime createdAt;
   final bool isRead;
   final String? reportId;
+  final String? dogId;
+  final String? vaccineId;
+  final String type; // 'nuevo_reporte' | 'cambio_estado' | 'proxima_vacuna' | 'general'
 
   AppNotificationItem({
     required this.id,
@@ -293,6 +297,9 @@ class AppNotificationItem {
     required this.createdAt,
     this.isRead = false,
     this.reportId,
+    this.dogId,
+    this.vaccineId,
+    this.type = 'general',
   });
 
   // Construye una notificación a partir de un documento de Firestore
@@ -307,6 +314,31 @@ class AppNotificationItem {
           DateTime.now(),
       isRead: m['isRead'] ?? m['leido'] ?? false,
       reportId: m['reportId'] ?? m['reporteId'],
+      dogId: m['dogId'] ?? m['perroId'],
+      vaccineId: m['vaccineId'] ?? m['vacunaId'],
+      type: m['type'] ?? m['tipo'] ?? 'general',
     );
   }
+}
+
+// ============================================================================
+// MODELO DE ALERTA DE PRÓXIMA VACUNACIÓN (UpcomingVaccineAlert)
+// Combina la información del perro y la vacuna cuya próxima dosis está cercana.
+// ============================================================================
+class UpcomingVaccineAlert {
+  final String dogId;
+  final String dogName;
+  final String vaccineId;
+  final String vaccineName;
+  final DateTime nextDate;
+  final String notes;
+
+  const UpcomingVaccineAlert({
+    required this.dogId,
+    required this.dogName,
+    required this.vaccineId,
+    required this.vaccineName,
+    required this.nextDate,
+    this.notes = '',
+  });
 }

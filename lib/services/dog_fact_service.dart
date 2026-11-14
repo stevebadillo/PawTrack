@@ -23,11 +23,18 @@ class DogFactService {
     'Los galgos son los perros más veloces del planeta, capaces de alcanzar velocidades de hasta 72 km/h en sprint.',
   ];
 
-  /// Traduce texto en inglés a español usando MyMemory Translation API (100% gratuita)
+  /// Traduce texto en inglés a español usando MyMemory Translation API
   static Future<String?> _translateToSpanish(String text) async {
     try {
+      final cleanedEnglish = text
+          .replaceAll(
+            RegExp(r",?\s*in case you('re| are) looking for.*", caseSensitive: false),
+            '.',
+          )
+          .trim();
+
       final uri = Uri.parse(
-        'https://api.mymemory.translated.net/get?q=${Uri.encodeComponent(text)}&langpair=en|es',
+        'https://api.mymemory.translated.net/get?q=${Uri.encodeComponent(cleanedEnglish)}&langpair=en|es',
       );
       final res = await http.get(uri).timeout(const Duration(seconds: 4));
       if (res.statusCode == 200) {
@@ -36,7 +43,13 @@ class DogFactService {
         if (translated != null &&
             translated.toString().trim().isNotEmpty &&
             !translated.toString().toUpperCase().contains('MYMEMORY WARNING')) {
-          return translated.toString();
+          return translated
+              .toString()
+              .replaceAll(
+                RegExp(r',?\s*por si buscas datos curiosos.*', caseSensitive: false),
+                '.',
+              )
+              .trim();
         }
       }
     } catch (_) {
@@ -45,8 +58,8 @@ class DogFactService {
     return null;
   }
 
-  /// Obtiene un dato curioso desde Dog Facts API y lo traduce al español.
-  /// Si la traducción o la API externa fallan, devuelve un dato del catálogo en español.
+  /// Obtiene un dato curioso canino y lo traduce al español.
+  /// Si la conexión falla, devuelve un dato del catálogo local en español.
   static Future<String> fetchFact() async {
     try {
       final response = await http

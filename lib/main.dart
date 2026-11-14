@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
@@ -19,6 +20,10 @@ Future<void> main() async {
   // Inicializa Firebase antes de levantar la interfaz. Esta configuración
   // conecta la app con el proyecto definido en firebase_options.dart.
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Registra el manejador de notificaciones FCM cuando la app está en segundo plano
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
   runApp(const PawTrackApp());
 }
 
@@ -35,6 +40,7 @@ class PawTrackApp extends StatelessWidget {
     return MaterialApp(
       title: 'PawTrack',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: NotificationService.scaffoldMessengerKey,
 
       // ----------------------------------------------------------------------
       // CONFIGURACIÓN DEL TEMA VISUAL (MATERIAL 3)
@@ -113,7 +119,10 @@ class PawTrackApp extends StatelessWidget {
               return const Scaffold(
                   body: Center(child: CircularProgressIndicator()));
             }
-            if (snap.data == null) return const LoginScreen();
+            if (snap.data == null) {
+              NotificationService.dispose();
+              return const LoginScreen();
+            }
             NotificationService.init(snap.data!.uid);
             return const HomeScreen();
           },

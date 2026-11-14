@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:image_picker/image_picker.dart';
@@ -81,35 +82,35 @@ class _EditReportScreenState extends State<EditReportScreen> {
 
     setState(() => _saving = true);
     try {
+      // Actualiza únicamente los campos oficiales del reporte y limpia posibles
+      // campos duplicados antiguos para mantener el documento limpio en Firestore.
       final Map<String, dynamic> updates = {
         'description': _desc.text.trim(),
-        'descripcion': _desc.text.trim(),
         'dogStatus': _dogStatus,
-        'estadoPerro': _dogStatus,
-        'incidentType': _incidentType,
-        'tipoIncidencia': _incidentType,
+        'incidentType': _dogStatus.isNotEmpty ? _incidentType : 'otro',
         'lat': _lat,
         'lng': _lng,
+        'descripcion': FieldValue.delete(),
+        'estadoPerro': FieldValue.delete(),
+        'tipoIncidencia': FieldValue.delete(),
+        'photos': FieldValue.delete(),
+        'evidencias': FieldValue.delete(),
+        'perroId': FieldValue.delete(),
+        'perroNombre': FieldValue.delete(),
       };
 
       if (_dog != null) {
         updates['dogId'] = _dog!.id;
         updates['dogName'] = _dog!.name;
-        updates['perroId'] = _dog!.id;
-        updates['perroNombre'] = _dog!.name;
       }
 
       if (_newPhoto != null) {
         final photoUrl = await DataService.uploadPhoto(_newPhoto!, 'reportes');
         updates['photoUrl'] = photoUrl;
-        updates['photoBase64'] = '';
-        updates['photos'] = [photoUrl];
-        updates['evidencias'] = [photoUrl];
+        updates['photoBase64'] = FieldValue.delete();
       } else if (_removeOriginalPhoto) {
-        updates['photoBase64'] = '';
+        updates['photoBase64'] = FieldValue.delete();
         updates['photoUrl'] = '';
-        updates['photos'] = [];
-        updates['evidencias'] = [];
       }
 
       await DataService.updateReportFull(widget.report.id, updates);

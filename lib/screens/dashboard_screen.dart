@@ -237,7 +237,7 @@ class DashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Bloque exclusivo para estudiantes: Dog Facts API & Recomendaciones Educativas
+            // Bloque exclusivo para estudiantes: Curiosidades y Recomendaciones Educativas
             if (!user.isStaff) ...[
               const _StudentEducationSection(),
               const SizedBox(height: 24),
@@ -723,15 +723,16 @@ class _MapBackgroundPainter extends CustomPainter {
 }
 
 // ============================================================================
-// SECCIÓN EDUCATIVA Y DOG FACTS API (EXCLUSIVA PARA ESTUDIANTES)
-// Muestra curiosidades caninas obtenidas de Dog Facts API y recomendaciones
+// SECCIÓN EDUCATIVA PARA ESTUDIANTES
+// Muestra datos curiosos sobre el mundo canino y recomendaciones prácticas
 // para la convivencia y cuidado de los perros en el campus universitario.
 // ============================================================================
 class _StudentEducationSection extends StatefulWidget {
   const _StudentEducationSection();
 
   @override
-  State<_StudentEducationSection> createState() => _StudentEducationSectionState();
+  State<_StudentEducationSection> createState() =>
+      _StudentEducationSectionState();
 }
 
 class _StudentEducationSectionState extends State<_StudentEducationSection> {
@@ -762,177 +763,259 @@ class _StudentEducationSectionState extends State<_StudentEducationSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Encabezado de la sección
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
+        // Tarjeta destacada "Dato curioso del día" con diseño moderno
+        Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFEFF6FF), Color(0xFFFFFFFF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFD6E4FF), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1E5BB0).withValues(alpha: 0.06),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Stack(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.lightbulb_outline_rounded,
-                    color: Color(0xFF1E5BB0),
-                    size: 20,
+                // Marca de agua decorativa sutil en la esquina inferior derecha
+                Positioned(
+                  right: -12,
+                  bottom: -14,
+                  child: Icon(
+                    Icons.pets_rounded,
+                    size: 92,
+                    color: const Color(0xFF1E5BB0).withValues(alpha: 0.05),
                   ),
                 ),
-                const SizedBox(width: 10),
-                const Text(
-                  'Dato curioso del día',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0B2545),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 16, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF1E5BB0), Color(0xFF0D3B73)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF1E5BB0)
+                                      .withValues(alpha: 0.22),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.lightbulb_rounded,
+                              color: Color(0xFFFBBF24),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: const [
+                                Text(
+                                  'Dato curioso del día',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF0B2545),
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                SizedBox(height: 2),
+                                Text(
+                                  'Aprende más sobre nuestros amigos caninos',
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Material(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: _loading ? null : _loadFact,
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xFFD6E4FF)),
+                                ),
+                                child: Center(
+                                  child: _loading
+                                      ? const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2),
+                                        )
+                                      : const Icon(
+                                          Icons.refresh_rounded,
+                                          color: Color(0xFF1E5BB0),
+                                          size: 19,
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 13),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: AnimatedCrossFade(
+                          firstChild: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6),
+                            child: Center(
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              ),
+                            ),
+                          ),
+                          secondChild: Text(
+                            _fact ?? 'Cargando curiosidad canina...',
+                            style: const TextStyle(
+                              fontSize: 13.8,
+                              height: 1.48,
+                              color: Color(0xFF1E293B),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          crossFadeState: _loading
+                              ? CrossFadeState.showFirst
+                              : CrossFadeState.showSecond,
+                          duration: const Duration(milliseconds: 250),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            IconButton(
-              tooltip: 'Cargar otro dato',
-              icon: _loading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(
-                      Icons.refresh_rounded,
-                      color: Color(0xFF1E5BB0),
-                      size: 20,
-                    ),
-              onPressed: _loading ? null : _loadFact,
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-
-        // Tarjeta principal con la curiosidad de la API
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0B2545).withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: const Text(
-                      'DOG FACTS API',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                        color: Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.pets, size: 16, color: Color(0xFF94A3B8)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              AnimatedCrossFade(
-                firstChild: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Center(
-                    child: SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                ),
-                secondChild: Text(
-                  _fact ?? 'Cargando curiosidad canina...',
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    height: 1.45,
-                    color: Color(0xFF1E293B),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                crossFadeState: _loading
-                    ? CrossFadeState.showFirst
-                    : CrossFadeState.showSecond,
-                duration: const Duration(milliseconds: 250),
-              ),
-            ],
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
 
         // Subtítulo de recomendaciones
         const Text(
           'Recomendaciones y cuidado en el campus',
           style: TextStyle(
-            fontSize: 15,
+            fontSize: 15.5,
             fontWeight: FontWeight.w800,
             color: Color(0xFF0B2545),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
 
         // Carrusel horizontal de recomendaciones educativas
         SizedBox(
-          height: 130,
+          height: 142,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: recommendations.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, index) {
               final item = recommendations[index];
+              final (iconData, accentColor, bgTint) = switch (item['icon']) {
+                'restaurant' => (
+                    Icons.restaurant_rounded,
+                    const Color(0xFFEA580C),
+                    const Color(0xFFFFF7ED)
+                  ),
+                'hotel' => (
+                    Icons.bedtime_rounded,
+                    const Color(0xFF4F46E5),
+                    const Color(0xFFEEF2FF)
+                  ),
+                'health_and_safety' => (
+                    Icons.health_and_safety_rounded,
+                    const Color(0xFFDC2626),
+                    const Color(0xFFFEF2F2)
+                  ),
+                _ => (
+                    Icons.pets_rounded,
+                    const Color(0xFF0D3B73),
+                    const Color(0xFFEFF6FF)
+                  ),
+              };
+
               return Container(
-                width: 230,
-                padding: const EdgeInsets.all(14),
+                width: 240,
+                padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0B2545).withValues(alpha: 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(
-                          item['icon'] == 'restaurant'
-                              ? Icons.restaurant_outlined
-                              : item['icon'] == 'hotel'
-                                  ? Icons.hotel_outlined
-                                  : item['icon'] == 'health_and_safety'
-                                      ? Icons.health_and_safety_outlined
-                                      : Icons.pets_outlined,
-                          size: 18,
-                          color: const Color(0xFF0D3B73),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: bgTint,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            iconData,
+                            size: 17,
+                            color: accentColor,
+                          ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             item['title']!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 13.5,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF0B2545),
                             ),
@@ -940,14 +1023,15 @@ class _StudentEducationSectionState extends State<_StudentEducationSection> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 10),
                     Expanded(
                       child: Text(
                         item['desc']!,
                         style: const TextStyle(
-                          fontSize: 11.5,
-                          height: 1.35,
-                          color: Color(0xFF64748B),
+                          fontSize: 12,
+                          height: 1.38,
+                          color: Color(0xFF475569),
+                          fontWeight: FontWeight.w500,
                         ),
                         maxLines: 4,
                         overflow: TextOverflow.ellipsis,

@@ -71,9 +71,9 @@ class AuthService {
   }
 
   // --------------------------------------------------------------------------
-  // VERIFICACIÓN Y MIGRACIÓN DE PERFIL DE USUARIO EN FIRESTORE
-  // Comprueba que exista el documento en 'usuarios'. Si estaba en la colección
-  // antigua ('users'), lo migra automáticamente conservando su rol.
+  // VERIFICACIÓN DEL PERFIL DE USUARIO EN FIRESTORE
+  // Comprueba que exista el documento en la colección 'usuarios' o lo crea
+  // automáticamente si ingresa por primera vez con Google.
   // --------------------------------------------------------------------------
   static Future<void> _requireOrMigrateProfile(User? user,
       {bool createIfNew = false}) async {
@@ -81,13 +81,6 @@ class AuthService {
     final ref = _db.collection('usuarios').doc(user.uid);
     final snapshot = await ref.get();
     if (snapshot.exists) return;
-
-    final legacyRef = _db.collection('users').doc(user.uid);
-    final legacy = await legacyRef.get();
-    if (legacy.exists) {
-      await ref.set(legacy.data()!);
-      return;
-    }
 
     if (createIfNew) {
       await ref.set({
