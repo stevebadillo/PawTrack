@@ -6,6 +6,7 @@ import '../services/data_service.dart';
 import '../services/dog_fact_service.dart';
 import 'contacts_screen.dart';
 import 'reports_screen.dart';
+import 'calendar_screen.dart';
 
 // ============================================================================
 // PANTALLA DE INICIO / PANEL PRINCIPAL (DashboardScreen)
@@ -228,13 +229,28 @@ class DashboardScreen extends StatelessWidget {
                     icon: Icons.groups_rounded,
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ContactsScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => ContactsScreen(user: user)),
                     ),
                     backgroundWidget: const _ContactsCardBackground(),
                   ),
                 ),
               ],
             ),
+
+            // Tarjeta de Calendario (Exclusiva para el rol de Personal)
+            if (user.isStaff) ...[
+              const SizedBox(height: 14),
+              _CalendarQuickCard(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => CalendarScreen(user: user)),
+                ),
+              ),
+            ],
+           
+
+
             const SizedBox(height: 24),
 
             // Bloque exclusivo para estudiantes: Curiosidades y Recomendaciones Educativas
@@ -1111,5 +1127,87 @@ class _HeroRipplePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+// Tarjeta de acceso rápido al Calendario (Personal)
+class _CalendarQuickCard extends StatelessWidget {
+  final VoidCallback onTap;
 
+  const _CalendarQuickCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 96,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Stack(
+              children: [
+                const Positioned(
+                  top: -20,
+                  right: -20,
+                  child: Icon(
+                    Icons.calendar_month_rounded,
+                    size: 100,
+                    color: Color(0xFFF1F5F9),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0D3B73),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.calendar_month_rounded, color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 16),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Calendario de Salud',
+                              style: TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0B2545),
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                          
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
