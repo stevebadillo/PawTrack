@@ -15,6 +15,19 @@ const ETIQUETAS_ESTADO = {
   resuelto: 'Resuelto',
 };
 
+function buildAndroidPushConfig(tag) {
+  return {
+    priority: 'high',
+    notification: {
+      channelId: 'pawtrack_notifications',
+      sound: 'default',
+      defaultSound: true,
+      defaultVibrateTimings: true,
+      ...(tag ? { tag } : {}),
+    },
+  };
+}
+
 exports.onNewReport = onDocumentCreated('reportes/{id}', async (event) => {
   const r = event.data.data() || {};
   const dogLabel = r.dogName || r.perroNombre || 'Perro sin identificar';
@@ -25,6 +38,7 @@ exports.onNewReport = onDocumentCreated('reportes/{id}', async (event) => {
       title: 'Nuevo reporte de incidencia',
       body: `${dogLabel}: ${desc}`.slice(0, 120),
     },
+    android: buildAndroidPushConfig(`nuevo_reporte_${event.params.id}`),
     data: {
       type: 'nuevo_reporte',
       reportId: event.params.id,
@@ -39,19 +53,17 @@ exports.onReportStatus = onDocumentUpdated('reportes/{id}', async (event) => {
   const reporterId = after.reporterId || after.usuarioId;
   if (!reporterId) return;
 
-  const user = await admin.firestore().doc(`usuarios/${reporterId}`).get();
-  const token = user.get('fcmToken');
-  if (!token) return;
-
   const dogLabel = after.dogName || after.perroNombre || 'Perro sin identificar';
   const statusLegible = ETIQUETAS_ESTADO[after.status] || after.status;
+  const notifTag = `estado_reporte_${event.params.id}`;
 
   await admin.messaging().send({
-    token,
+    topic: `usuario_${reporterId}`,
     notification: {
-      title: 'Tu reporte fue actualizado',
-      body: `El reporte sobre ${dogLabel} cambió a estado: ${statusLegible}.`,
+      title: `Estado actualizado: ${statusLegible}`,
+      body: `El reporte sobre ${dogLabel} cambió de estado a "${statusLegible}".`,
     },
+    android: buildAndroidPushConfig(notifTag),
     data: {
       type: 'cambio_estado',
       reportId: event.params.id,
@@ -71,9 +83,10 @@ exports.vaccineReminders = onSchedule({ schedule: '0 8 * * *', timeZone: 'Americ
     await admin.messaging().send({
       topic: 'personal',
       notification: {
-        title: 'Próxima vacunación',
+        title: `Próxima vacunación: ${dogName}`,
         body: `${dogName} necesita ${doc.get('name')} el ${doc.get('nextDate').toDate().toLocaleDateString('es-EC')}`,
       },
+      android: buildAndroidPushConfig(`vacuna_${dog.id}_${doc.id}`),
       data: {
         type: 'proxima_vacuna',
         dogId: dog.id,
