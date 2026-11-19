@@ -21,11 +21,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 // ============================================================================
 // SERVICIO DE NOTIFICACIONES PUSH Y ALERTAS EN TIEMPO REAL (NotificationService)
 // Gestiona permisos FCM, tokens de dispositivo, suscripción a temas ('personal',
-// 'usuario_{uid}' y 'todos'), notificaciones nativas en la barra de estado de
-// Android y alertas en tiempo real para:
+// 'usuario_{uid}' y 'todos') y muestra 1 sola notificación por cada evento nuevo:
 //   1. Nuevos reportes de incidencia (Personal)
-//   2. Cambios de estado en reportes (Estudiantes — en vivo, en segundo plano
-//      y al iniciar sesión)
+//   2. Cambios de estado en reportes (Estudiantes)
 //   3. Próximas fechas de vacunación (Personal)
 // ============================================================================
 class NotificationService {
@@ -41,32 +39,28 @@ class NotificationService {
   static StreamSubscription<String>? _tokenSub;
   static StreamSubscription<RemoteMessage>? _onMessageSub;
   static StreamSubscription<QuerySnapshot>? _reportsSub;
-  static StreamSubscription<QuerySnapshot>? _notifSub;
   static StreamSubscription? _vaccinesSub;
   static OverlayEntry? _activeOverlay;
   static Timer? _overlayTimer;
 
-  // Registro para evitar mostrar alertas duplicadas en pocos segundos
-  static final Map<String, DateTime> _recentAlerts = {};
-  static final Set<String> _notifiedVaccineIds = {};
+  // Conjunto permanente de claves ya notificadas para que cada evento se
+  // muestre exactamente 1 sola vez y jamás entre en bucle.
+  static final Set<String> _shownAlertKeys = {};
+  static DateTime _lastBannerTime = DateTime.fromMillisecondsSinceEpoch(0);
 
   static Future<void> init(String uid) async {
     if (_currentUid == uid) return;
+    final previousUid = _currentUid;
     await dispose();
     _currentUid = uid;
 
     final db = FirebaseFirestore.instance;
     String role = 'estudiante';
-    Map<String, dynamic> seenStatuses = {};
 
     try {
       final userDoc = await db.collection('usuarios').doc(uid).get();
       final userData = userDoc.data() ?? {};
       role = (userData['role'] ?? 'estudiante').toString();
-      if (userData['seenReportStatuses'] is Map) {
-        seenStatuses =
-            Map<String, dynamic>.from(userData['seenReportStatuses'] as Map);
-      }
     } catch (_) {}
 
     // 1. Configuración de Firebase Cloud Messaging (FCM)
@@ -105,11 +99,11 @@ class NotificationService {
         } catch (_) {}
       });
 
-      // Suscripción a temas (Topics) en plataformas nativas (Android / iOS):
-      // - 'usuario_{uid}': canal individual para recibir cambios de estado por FCM
-      // - 'personal': canal del personal para nuevos reportes y vacunas próximas
-      // - 'todos': canal general del campus
+      // Suscripción a temas (Topics) en plataformas nativas (Android / iOS)
       if (!kIsWeb) {
+        if (previousUid != null && previousUid != uid) {
+          await fcm.unsubscribeFromTopic('usuario_$previousUid');
+        }
         await fcm.subscribeToTopic('usuario_$uid');
         if (role == 'personal') {
           await fcm.subscribeToTopic('personal');
@@ -126,9 +120,19 @@ class NotificationService {
           final title = notif.title ?? 'Notificación PawTrack';
           final body = notif.body ?? '';
           final reportId = message.data['reportId']?.toString() ?? '';
+          final status = message.data['status']?.toString() ?? '';
+          final vaccineId = message.data['vaccineId']?.toString() ?? '';
           final type = message.data['type']?.toString() ?? 'fcm';
-          _showTopPushBanner(
-            key: reportId.isNotEmpty ? 'notif_${type}_$reportId' : '$title|$body',
+
+          final dedupKey = switch (type) {
+            'nuevo_reporte' => 'nuevo_reporte_$reportId',
+            'cambio_estado' => 'cambio_estado_${reportId}_$status',
+            'proxima_vacuna' => 'proxima_vacuna_$vaccineId',
+            _ => 'fcm_${message.messageId ?? '$title|$body'}',
+          };
+
+          _showSingleAlert(
+            key: dedupKey,
             title: title,
             body: body,
             icon: Icons.notifications_active_rounded,
@@ -141,84 +145,50 @@ class NotificationService {
       // Firestore en tiempo real seguirán entregando las notificaciones.
     }
 
-    // 2. Listeners en tiempo real con Firestore (Funciona 100% en plan gratuito Spark)
+    // 2. Listeners en tiempo real con Firestore (sin escrituras internas para evitar bucles)
     _startRealtimeListeners(
       uid: uid,
       isStaff: role == 'personal',
-      initialSeenStatuses: seenStatuses,
     );
   }
 
   static void _startRealtimeListeners({
     required String uid,
     required bool isStaff,
-    required Map<String, dynamic> initialSeenStatuses,
   }) {
     final db = FirebaseFirestore.instance;
 
-    // Listener de la colección 'notificaciones' para mostrar avisos no leídos
-    // (por ejemplo, si el estado cambió mientras el estudiante tenía la app cerrada)
-    _notifSub = db
-        .collection('notificaciones')
-        .where('userId', isEqualTo: isStaff ? 'personal' : uid)
-        .snapshots()
-        .listen((snapshot) {
-      for (final doc in snapshot.docs) {
-        final data = doc.data();
-        final isRead = data['isRead'] == true;
-        if (!isRead) {
-          final title = (data['title'] ?? 'Notificación PawTrack').toString();
-          final body = (data['body'] ?? '').toString();
-          final type = (data['type'] ?? '').toString();
-          final reportId = (data['reportId'] ?? doc.id).toString();
-
-          final (icon, color) = switch (type) {
-            'nuevo_reporte' => (
-                Icons.warning_amber_rounded,
-                const Color(0xFFDC2626)
-              ),
-            'proxima_vacuna' => (
-                Icons.vaccines_rounded,
-                const Color(0xFF7C3AED)
-              ),
-            _ => (Icons.sync_rounded, const Color(0xFF15803D)),
-          };
-
-          _showTopPushBanner(
-            key: 'notif_${type}_$reportId',
-            title: title,
-            body: body,
-            icon: icon,
-            color: color,
-          );
-
-          // Marca la notificación como leída para no volver a disparar el banner
-          doc.reference.update({'isRead': true}).catchError((_) {});
-        }
-      }
-    });
-
     if (isStaff) {
-      // A) Personal: Escucha nuevos reportes creados en tiempo real
+      // A) Personal: Escucha ÚNICAMENTE reportes nuevos creados después de abrir la app
+      final Set<String> existingReportIds = {};
       bool initialReportsLoad = true;
+
       _reportsSub = db.collection('reportes').snapshots().listen((snapshot) {
         if (initialReportsLoad) {
+          for (final doc in snapshot.docs) {
+            existingReportIds.add(doc.id);
+          }
           initialReportsLoad = false;
           return;
         }
+
         for (final change in snapshot.docChanges) {
-          if (change.type == DocumentChangeType.added) {
+          if (change.type == DocumentChangeType.added &&
+              existingReportIds.add(change.doc.id)) {
             final data = change.doc.data() ?? {};
             final reporterId = (data['reporterId'] ?? '').toString();
             if (reporterId == uid) continue;
-            final dogName = (data['dogName'] ?? data['perroNombre'])?.toString();
+
+            final dogName =
+                (data['dogName'] ?? data['perroNombre'])?.toString();
             final label = (dogName != null && dogName.isNotEmpty)
                 ? dogName
                 : 'Perro sin identificar';
             final desc =
                 (data['description'] ?? data['descripcion'] ?? '').toString();
-            _showTopPushBanner(
-              key: 'notif_nuevo_reporte_${change.doc.id}',
+
+            _showSingleAlert(
+              key: 'nuevo_reporte_${change.doc.id}',
               title: 'Nuevo reporte de incidencia',
               body: '$label: $desc',
               icon: Icons.warning_amber_rounded,
@@ -228,30 +198,36 @@ class NotificationService {
         }
       });
 
-      // B) Personal: Verifica vacunas próximas a vencer (en los próximos 7 días)
+      // B) Personal: Verifica vacunas próximas (registra las existentes al inicio
+      // y solo notifica 1 vez cuando se agrega una nueva vacuna próxima)
+      bool initialVaccinesLoad = true;
       _vaccinesSub =
           DataService.upcomingVaccines(withinDays: 7).listen((alerts) {
-        for (final alert in alerts) {
-          final alertKey = '${alert.dogId}_${alert.vaccineId}';
-          if (_notifiedVaccineIds.add(alertKey)) {
-            final d = alert.nextDate;
-            final dateStr =
-                '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-            _showTopPushBanner(
-              key: 'vaccine_$alertKey',
-              title: 'Próxima vacunación: ${alert.dogName}',
-              body: 'Dosis de ${alert.vaccineName} programada para el $dateStr.',
-              icon: Icons.vaccines_rounded,
-              color: const Color(0xFF7C3AED),
-            );
+        if (initialVaccinesLoad) {
+          for (final alert in alerts) {
+            _shownAlertKeys.add('proxima_vacuna_${alert.vaccineId}');
           }
+          initialVaccinesLoad = false;
+          return;
+        }
+
+        for (final alert in alerts) {
+          final d = alert.nextDate;
+          final dateStr =
+              '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+          _showSingleAlert(
+            key: 'proxima_vacuna_${alert.vaccineId}',
+            title: 'Próxima vacunación: ${alert.dogName}',
+            body: 'Dosis de ${alert.vaccineName} programada para el $dateStr.',
+            icon: Icons.vaccines_rounded,
+            color: const Color(0xFF7C3AED),
+          );
         }
       });
     } else {
-      // C) Estudiante: Escucha cambios de estado en sus reportes tanto en vivo
-      // como si ocurrieron mientras su sesión estaba cerrada.
-      final Map<String, String> knownStatuses =
-          initialSeenStatuses.map((k, v) => MapEntry(k, v.toString()));
+      // C) Estudiante: Guarda el estado actual de sus reportes al abrir la app
+      // y dispara 1 sola notificación únicamente cuando un estado cambia en vivo.
+      final Map<String, String> knownStatuses = {};
       bool initialStudentLoad = true;
 
       _reportsSub = db
@@ -259,108 +235,77 @@ class NotificationService {
           .where('reporterId', isEqualTo: uid)
           .snapshots()
           .listen((snapshot) {
-        bool statusChangedInStorage = false;
-
         if (initialStudentLoad) {
-          initialStudentLoad = false;
           for (final doc in snapshot.docs) {
-            final data = doc.data();
-            final currentStatus = (data['status'] ?? 'pendiente').toString();
-            final previousSeen = knownStatuses[doc.id];
-
-            if ((previousSeen != null && previousSeen != currentStatus) ||
-                (previousSeen == null && currentStatus != 'pendiente')) {
-              final dogName =
-                  (data['dogName'] ?? data['perroNombre'])?.toString();
-              final label = (dogName != null && dogName.isNotEmpty)
-                  ? dogName
-                  : 'Perro sin identificar';
-              final statusText = switch (currentStatus) {
-                'en_revision' || 'en_atencion' => 'En revisión',
-                'resuelto' => 'Resuelto',
-                _ => 'Pendiente',
-              };
-              _showTopPushBanner(
-                key: 'notif_cambio_estado_${doc.id}',
-                title: 'Estado actualizado: $statusText',
-                body:
-                    'El reporte sobre $label cambió de estado a "$statusText".',
-                icon: currentStatus == 'resuelto'
-                    ? Icons.check_circle_outline_rounded
-                    : Icons.sync_rounded,
-                color: currentStatus == 'resuelto'
-                    ? const Color(0xFF15803D)
-                    : const Color(0xFFB45309),
-              );
-            }
-            if (previousSeen != currentStatus) {
-              knownStatuses[doc.id] = currentStatus;
-              statusChangedInStorage = true;
-            }
+            final currentStatus =
+                (doc.data()['status'] ?? 'pendiente').toString();
+            knownStatuses[doc.id] = currentStatus;
+            _shownAlertKeys.add('cambio_estado_${doc.id}_$currentStatus');
           }
-        } else {
-          for (final change in snapshot.docChanges) {
-            final data = change.doc.data() ?? {};
-            final newStatus = (data['status'] ?? 'pendiente').toString();
-            final prevStatus = knownStatuses[change.doc.id];
-            knownStatuses[change.doc.id] = newStatus;
-            statusChangedInStorage = true;
-
-            if (change.type == DocumentChangeType.modified &&
-                prevStatus != null &&
-                prevStatus != newStatus) {
-              final dogName =
-                  (data['dogName'] ?? data['perroNombre'])?.toString();
-              final label = (dogName != null && dogName.isNotEmpty)
-                  ? dogName
-                  : 'Perro sin identificar';
-              final statusText = switch (newStatus) {
-                'en_revision' || 'en_atencion' => 'En revisión',
-                'resuelto' => 'Resuelto',
-                _ => 'Pendiente',
-              };
-              _showTopPushBanner(
-                key: 'notif_cambio_estado_${change.doc.id}',
-                title: 'Estado actualizado: $statusText',
-                body:
-                    'El reporte sobre $label cambió de estado a "$statusText".',
-                icon: newStatus == 'resuelto'
-                    ? Icons.check_circle_outline_rounded
-                    : Icons.sync_rounded,
-                color: newStatus == 'resuelto'
-                    ? const Color(0xFF15803D)
-                    : const Color(0xFFB45309),
-              );
-            }
-          }
+          initialStudentLoad = false;
+          return;
         }
 
-        if (statusChangedInStorage) {
-          db.collection('usuarios').doc(uid).set({
-            'seenReportStatuses': knownStatuses,
-          }, SetOptions(merge: true)).catchError((_) {});
+        for (final change in snapshot.docChanges) {
+          final data = change.doc.data() ?? {};
+          final newStatus = (data['status'] ?? 'pendiente').toString();
+          final prevStatus = knownStatuses[change.doc.id];
+          knownStatuses[change.doc.id] = newStatus;
+
+          if (change.type == DocumentChangeType.modified &&
+              prevStatus != null &&
+              prevStatus != newStatus) {
+            final dogName =
+                (data['dogName'] ?? data['perroNombre'])?.toString();
+            final label = (dogName != null && dogName.isNotEmpty)
+                ? dogName
+                : 'Perro sin identificar';
+            final statusText = switch (newStatus) {
+              'en_revision' || 'en_atencion' => 'En revisión',
+              'resuelto' => 'Resuelto',
+              _ => 'Pendiente',
+            };
+
+            _showSingleAlert(
+              key: 'cambio_estado_${change.doc.id}_$newStatus',
+              title: 'Estado actualizado: $statusText',
+              body:
+                  'El reporte sobre $label cambió de estado a "$statusText".',
+              icon: newStatus == 'resuelto'
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.sync_rounded,
+              color: newStatus == 'resuelto'
+                  ? const Color(0xFF15803D)
+                  : const Color(0xFFB45309),
+            );
+          }
         }
       });
     }
   }
 
-  /// Muestra una notificación tanto en la barra del sistema Android (con sonido
-  /// e ícono en la parte superior del celular) como en un banner emergente dentro de la app.
-  static void _showTopPushBanner({
+  /// Muestra la notificación 1 sola vez por clave única ([key]). Si la clave ya
+  /// fue mostrada anteriormente (por FCM o por Firestore), la ignora por completo.
+  static void _showSingleAlert({
     required String key,
     required String title,
     required String body,
     required IconData icon,
     required Color color,
   }) {
-    final now = DateTime.now();
-    final lastShown = _recentAlerts[key];
-    if (lastShown != null && now.difference(lastShown).inSeconds < 8) {
+    // Si esta alerta ya se mostró antes en la sesión, no se vuelve a repetir jamás
+    if (!_shownAlertKeys.add(key)) {
       return;
     }
-    _recentAlerts[key] = now;
 
-    // 1. Dispara la notificación nativa en la barra de estado del sistema Android
+    // Protección adicional contra dos eventos simultáneos en menos de 2 segundos
+    final now = DateTime.now();
+    if (now.difference(_lastBannerTime).inMilliseconds < 1500) {
+      return;
+    }
+    _lastBannerTime = now;
+
+    // 1. Notificación nativa en la barra de estado de Android
     if (!kIsWeb) {
       _androidNotificationChannel.invokeMethod('showSystemNotification', {
         'id': key.hashCode.abs() % 100000,
@@ -369,8 +314,8 @@ class NotificationService {
       }).catchError((_) {});
     }
 
-    // 2. Muestra el banner superior animado dentro de la aplicación
-    Future.delayed(const Duration(milliseconds: 350), () {
+    // 2. Banner superior desplegable dentro de la app
+    Future.delayed(const Duration(milliseconds: 300), () {
       final overlayState = navigatorKey.currentState?.overlay;
       if (overlayState == null) return;
 
@@ -498,7 +443,7 @@ class NotificationService {
       _activeOverlay = entry;
       overlayState.insert(entry);
 
-      _overlayTimer = Timer(const Duration(seconds: 6), () {
+      _overlayTimer = Timer(const Duration(seconds: 5), () {
         if (_activeOverlay == entry) {
           entry.remove();
           _activeOverlay = null;
@@ -515,12 +460,10 @@ class NotificationService {
     await _tokenSub?.cancel();
     await _onMessageSub?.cancel();
     await _reportsSub?.cancel();
-    await _notifSub?.cancel();
     await _vaccinesSub?.cancel();
     _tokenSub = null;
     _onMessageSub = null;
     _reportsSub = null;
-    _notifSub = null;
     _vaccinesSub = null;
   }
 }
