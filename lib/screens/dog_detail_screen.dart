@@ -7,6 +7,7 @@ import 'dog_form_screen.dart';
 import 'medical_entry_screen.dart';
 import 'report_form_screen.dart';
 import 'vaccine_form_screen.dart';
+import '../widgets/breed_analysis_card.dart';
 
 final _fmt = DateFormat('dd/MM/yyyy');
 
@@ -264,6 +265,7 @@ class DogDetailScreen extends StatelessWidget {
                 const SizedBox(height: 18),
               ],
 
+              BreedAnalysisCard(breeds: d.breedAnalysis),
               _medicalFacts(d),
               const SizedBox(height: 20),
 
@@ -639,21 +641,6 @@ class DogDetailScreen extends StatelessWidget {
       BuildContext context, String documentUrl) async {
     try {
       final uri = Uri.parse(documentUrl);
-      if (uri.host == 'res.cloudinary.com' &&
-          uri.pathSegments.contains('raw')) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Este PDF tiene el acceso bloqueado en Cloudinary. '
-                'Vuelve a adjuntarlo en una nueva entrada médica.',
-              ),
-            ),
-          );
-        }
-        return;
-      }
-
       final opened = await launchUrl(
         uri,
         mode: LaunchMode.externalApplication,

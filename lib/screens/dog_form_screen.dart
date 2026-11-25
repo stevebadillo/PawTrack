@@ -6,6 +6,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
+import '../services/breed_analysis_service.dart';
+import '../widgets/breed_analysis_card.dart';
 import 'dog_detail_screen.dart';
 import 'medical_entry_screen.dart';
 import 'vaccine_form_screen.dart';
@@ -32,6 +34,8 @@ class _DogFormScreenState extends State<DogFormScreen> {
   bool _collar = false, _sterilized = false, _saving = false;
   double _uploadProgress = 0;
   Uint8List? _photo;
+  List<BreedPrediction> _breedAnalysis = const [];
+  bool _analyzingBreed = false;
 
   // Inline medical entries and vaccines collected before saving the dog
   final List<Map<String, dynamic>> _medicalEntries = [];
@@ -84,7 +88,19 @@ class _DogFormScreenState extends State<DogFormScreen> {
           }
           return;
         }
-        if (mounted) setState(() => _photo = bytes);
+        if (mounted) setState(() { _photo = bytes; _breedAnalysis = const []; _analyzingBreed = true; });
+        try {
+          final breeds = await BreedAnalysisService.analyze(bytes);
+          if (mounted) setState(() => _breedAnalysis = breeds);
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No se pudo estimar la raza; puedes guardar la foto e intentarlo más tarde.')),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _analyzingBreed = false);
+        }
       }
     } catch (_) {
       if (mounted) {
@@ -145,6 +161,10 @@ class _DogFormScreenState extends State<DogFormScreen> {
         'age': _age.text.trim(),
         'allergies': _allergies.text.trim(),
         'isSterilized': _sterilized,
+        if (_photo != null)
+          'breedAnalysis': _breedAnalysis.map((breed) => breed.toMap()).toList(),
+        if (_photo != null && _breedAnalysis.isNotEmpty)
+          'breedAnalyzedAt': FieldValue.serverTimestamp(),
       };
       String dogId;
       if (widget.dog == null) {
@@ -368,6 +388,18 @@ class _DogFormScreenState extends State<DogFormScreen> {
                 ],
               ),
             ),
+            if (_analyzingBreed) ...[
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Center(child: Text('Analizando posibles razas…')),
+              ),
+            ],
+            if (_breedAnalysis.isNotEmpty)
+              BreedAnalysisCard(breeds: _breedAnalysis),
             const SizedBox(height: 22),
 
             // ── IDENTIFICACIÓN ──
@@ -531,7 +563,7 @@ class _DogFormScreenState extends State<DogFormScreen> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25)),
               ),
-              onPressed: _saving ? null : _save,
+              onPressed: (_saving || _analyzingBreed) ? null : _save,
               icon: _saving
                   ? const SizedBox(
                       width: 18,
