@@ -155,7 +155,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       // Sube la fotografía a Cloudinary y guarda únicamente los campos
       // estandarizados del reporte sin duplicar claves en español/inglés.
       final photoUrl = await DataService.uploadPhoto(_photo!, 'reportes');
-      await DataService.addReport({
+      final reportId = await DataService.addReport({
         'description': _desc.text.trim(),
         'photoUrl': photoUrl,
         'dogStatus': _dogStatus,
@@ -169,6 +169,17 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         if (_breedAnalysis.isNotEmpty) 'breedAnalysis': _breedAnalysis.map((breed) => breed.toMap()).toList(),
         if (_breedAnalysis.isNotEmpty) 'breedAnalyzedAt': DateTime.now(),
       });
+      if (_dog != null && _breedAnalysis.isNotEmpty) {
+        try {
+          await DataService.updateDogBreedAnalysisFromReport(
+            _dog!.id,
+            reportId,
+            _breedAnalysis.map((breed) => breed.toMap()).toList(),
+          );
+        } catch (_) {
+          // El reporte conserva el análisis aunque no se pueda actualizar la ficha.
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

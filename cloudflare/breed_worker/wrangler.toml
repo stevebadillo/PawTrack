@@ -1,0 +1,16 @@
+name = "pawtrack-breed-api"
+main = "src/index.js"
+account_id = "d249949e79760e704ca37d220719a4e0"
+compatibility_date = "2026-11-26"
+workers_dev = true
+preview_urls = true
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+
+[vars]
+FIREBASE_PROJECT_ID = "pawtrack-espoch"
+FIREBASE_API_KEY = "AIzaSyAosMhuHWLkR6J9I8VWSjlsw3l0a2l1Pwo"

@@ -151,6 +151,14 @@ class DataService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+  /// Elimina una entrada médica específica de un perro.
+  static Future<void> deleteMedicalEntry(
+          String dogId, String entryId) =>
+      _db
+          .collection('$dogCollection/$dogId/$medicalCollection')
+          .doc(entryId)
+          .delete();
+
   /// Elimina un perro con sus vacunas y su historial médico,
   /// conservando los reportes antiguos.
   static Future<void> deleteDog(Dog dog) async {
@@ -232,6 +240,13 @@ class DataService {
     }
   }
 
+  /// Elimina una vacuna específica de un perro.
+  static Future<void> deleteVaccine(String dogId, String vaccineId) =>
+      _db
+          .collection('$dogCollection/$dogId/$vaccineCollection')
+          .doc(vaccineId)
+          .delete();
+
   /// Obtiene las vacunas con próxima fecha programada dentro de los próximos
   /// [withinDays] días (incluyendo las que vencen hoy) sin requerir índices
   /// compuestos especiales en Firestore.
@@ -290,7 +305,7 @@ class DataService {
     });
   }
 
-  static Future<void> addReport(Map<String, dynamic> data) async {
+  static Future<String> addReport(Map<String, dynamic> data) async {
     final docRef = await _db.collection(reportCollection).add({
       ...data,
       'status': 'pendiente',
@@ -317,7 +332,19 @@ class DataService {
         'createdAt': FieldValue.serverTimestamp(),
       });
     } catch (_) {}
+    return docRef.id;
   }
+
+  static Future<void> updateDogBreedAnalysisFromReport(
+    String dogId,
+    String reportId,
+    List<Map<String, dynamic>> breedAnalysis,
+  ) =>
+      _db.collection(dogCollection).doc(dogId).update({
+        'breedAnalysis': breedAnalysis,
+        'breedAnalyzedAt': FieldValue.serverTimestamp(),
+        'breedSourceReportId': reportId,
+      });
 
   static Future<void> updateReportStatus(String id, String status) async {
     await _db.collection(reportCollection).doc(id).update({

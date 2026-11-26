@@ -32,7 +32,17 @@ service cloud.firestore {
 
     match /canes/{dogId} {
       allow read: if signedIn();
-      allow write: if isStaff();
+      allow write: if isStaff() || (
+        signedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'breedAnalysis', 'breedAnalyzedAt', 'breedSourceReportId'
+        ]) &&
+        request.resource.data.breedSourceReportId is string &&
+        exists(/databases/$(db)/documents/reportes/$(request.resource.data.breedSourceReportId)) &&
+        get(/databases/$(db)/documents/reportes/$(request.resource.data.breedSourceReportId)).data.reporterId == request.auth.uid &&
+        get(/databases/$(db)/documents/reportes/$(request.resource.data.breedSourceReportId)).data.dogId == dogId &&
+        get(/databases/$(db)/documents/reportes/$(request.resource.data.breedSourceReportId)).data.breedAnalysis == request.resource.data.breedAnalysis
+      );
       match /vacunas/{vId} {
         allow read: if signedIn();
         allow write: if isStaff();
