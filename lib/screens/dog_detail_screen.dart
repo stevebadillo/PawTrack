@@ -51,6 +51,82 @@ class DogDetailScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _confirmDeleteVaccine(BuildContext context, Vaccine vaccine) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('¿Eliminar vacuna ${vaccine.name}?'),
+        content: const Text('Esta acción eliminará el registro de la vacuna permanentemente.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await DataService.deleteVaccine(dogId, vaccine.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vacuna eliminada correctamente.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo eliminar la vacuna: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteMedicalEntry(
+      BuildContext context, String entryId, String title) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('¿Eliminar entrada médica "$title"?'),
+        content: const Text(
+            'Esta acción eliminará este registro médico permanentemente.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await DataService.deleteMedicalEntry(dogId, entryId);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Registro médico eliminado correctamente.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo eliminar el registro médico: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<Dog>(
@@ -427,6 +503,17 @@ class DogDetailScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
+                              if (user.isStaff)
+                                IconButton(
+                                  tooltip: 'Eliminar vacuna',
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: Color(0xFFDC2626),
+                                    size: 20,
+                                  ),
+                                  onPressed: () =>
+                                      _confirmDeleteVaccine(context, v),
+                                ),
                             ],
                           ),
                         );
@@ -497,6 +584,7 @@ class DogDetailScreen extends StatelessWidget {
                             title: entry.title,
                             description: entry.description,
                             documents: entry.documents,
+                            entryId: entry.id,
                           ),
                         ),
                     ],
@@ -568,6 +656,7 @@ class DogDetailScreen extends StatelessWidget {
     required String title,
     required String description,
     List<String> documents = const [],
+    String? entryId,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -593,9 +682,27 @@ class DogDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_fmt.format(date),
-                    style: const TextStyle(
-                        color: Color(0xFF64748B), fontSize: 11)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(_fmt.format(date),
+                        style: const TextStyle(
+                            color: Color(0xFF64748B), fontSize: 11)),
+                    if (user.isStaff && entryId != null)
+                      IconButton(
+                        tooltip: 'Eliminar entrada médica',
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Color(0xFFDC2626),
+                          size: 18,
+                        ),
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        onPressed: () => _confirmDeleteMedicalEntry(
+                            context, entryId, title),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 5),
                 Text(title,
                     style: const TextStyle(
@@ -641,6 +748,22 @@ class DogDetailScreen extends StatelessWidget {
       BuildContext context, String documentUrl) async {
     try {
       final uri = Uri.parse(documentUrl);
+      if (uri.host == 'res.cloudinary.com' &&
+          uri.pathSegments.contains('raw')) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              duration: Duration(seconds: 5),
+              content: Text(
+                'Este PDF fue bloqueado por la seguridad de Cloudinary (Deny/ACL). '
+                'Debes habilitar "PDF and ZIP files delivery" en Cloudinary > Settings > Security, o resubirlo en Firebase Storage.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
       final opened = await launchUrl(
         uri,
         mode: LaunchMode.externalApplication,
