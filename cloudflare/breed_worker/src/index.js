@@ -72,7 +72,9 @@ export default {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            image_base64: 'data:image/jpeg;base64,' + imageBase64,
+            // Send raw base64 so PNGs (used for small-image upscaling in the
+            // app) are detected by their actual bytes, not mislabeled JPEG.
+            image_base64: imageBase64,
           }),
         },
       );
