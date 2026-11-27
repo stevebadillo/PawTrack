@@ -14,3 +14,6 @@ enabled = true
 [vars]
 FIREBASE_PROJECT_ID = "pawtrack-espoch"
 FIREBASE_API_KEY = "AIzaSyAosMhuHWLkR6J9I8VWSjlsw3l0a2l1Pwo"
+
+[ai]
+binding = "AI"

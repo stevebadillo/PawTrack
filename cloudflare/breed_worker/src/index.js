@@ -1,4 +1,35 @@
 const MAX_IMAGE_BASE64_LENGTH = 7_000_000;
+const DOG_LABELS = new Set([
+  'chihuahua', 'japanese spaniel', 'maltese dog', 'pekinese', 'shih-tzu',
+  'blenheim spaniel', 'papillon', 'toy terrier', 'rhodesian ridgeback',
+  'afghan hound', 'basset', 'beagle', 'bloodhound', 'bluetick',
+  'black-and-tan coonhound', 'walker hound', 'english foxhound', 'redbone',
+  'borzoi', 'irish wolfhound', 'italian greyhound', 'whippet', 'ibizan hound',
+  'norwegian elkhound', 'otterhound', 'saluki', 'scottish deerhound',
+  'weimaraner', 'staffordshire bullterrier', 'american staffordshire terrier',
+  'bedlington terrier', 'border terrier', 'kerry blue terrier', 'irish terrier',
+  'norfolk terrier', 'norwich terrier', 'yorkshire terrier',
+  'wire-haired fox terrier', 'lakeland terrier', 'sealyham terrier', 'airedale',
+  'cairn terrier', 'australian terrier', 'dandie dinmont', 'boston bull',
+  'miniature schnauzer', 'giant schnauzer', 'standard schnauzer',
+  'scottish terrier', 'tibetan terrier', 'silky terrier',
+  'soft-coated wheaten terrier', 'west highland white terrier', 'lhasa',
+  'flat-coated retriever', 'curly-coated retriever', 'golden retriever',
+  'labrador retriever', 'chesapeake bay retriever', 'german short-haired pointer',
+  'vizsla', 'english setter', 'irish setter', 'gordon setter',
+  'brittany spaniel', 'clumber', 'english springer', 'welsh springer spaniel',
+  'cocker spaniel', 'sussex spaniel', 'irish water spaniel', 'kuvasz',
+  'schipperke', 'groenendael', 'malinois', 'briard', 'kelpie', 'komondor',
+  'old english sheepdog', 'shetland sheepdog', 'collie', 'border collie',
+  'bouvier des flandres', 'rottweiler', 'german shepherd', 'doberman',
+  'miniature pinscher', 'greater swiss mountain dog', 'bernese mountain dog',
+  'appenzeller', 'entlebucher', 'boxer', 'bull mastiff', 'tibetan mastiff',
+  'french bulldog', 'great dane', 'saint bernard', 'eskimo dog', 'malamute',
+  'siberian husky', 'dalmatian', 'affenpinscher', 'basenji', 'pug', 'leonberg',
+  'newfoundland', 'great pyrenees', 'samoyed', 'pomeranian', 'chow', 'keeshond',
+  'brabancon griffon', 'pembroke', 'cardigan', 'toy poodle', 'miniature poodle',
+  'standard poodle', 'mexican hairless',
+]);
 
 function json(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
@@ -44,7 +75,7 @@ export default {
   async fetch(request, env) {
     if (request.method === 'OPTIONS') return json({});
     if (request.method !== 'POST') return json({ error: 'Método no permitido.' }, 405);
-    if (!env.NAKORDONI_API_KEY || !env.FIREBASE_API_KEY || !env.FIREBASE_PROJECT_ID) {
+    if (!env.AI || !env.FIREBASE_API_KEY || !env.FIREBASE_PROJECT_ID) {
       return json({ error: 'El servicio aún no está configurado.' }, 503);
     }
     const userId = await verifyFirebaseUser(request, env);
@@ -63,53 +94,35 @@ export default {
     }
 
     try {
-      const apiResponse = await fetch(
-        'https://nakordoni.eu/api/v2/data/pet-recognition',
-        {
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer ' + env.NAKORDONI_API_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            // Send raw base64 so PNGs (used for small-image upscaling in the
-            // app) are detected by their actual bytes, not mislabeled JPEG.
-            image_base64: imageBase64,
-          }),
-        },
+      const imageBytes = Uint8Array.from(atob(imageBase64), (character) =>
+        character.charCodeAt(0),
       );
-      if (apiResponse.status === 404) return json({ breeds: [] });
-      const result = await apiResponse.json();
-      if (!apiResponse.ok) {
-        const upstreamCode = typeof result.error?.code === 'string'
-          ? result.error.code
-          : 'unknown';
-        console.error('Nakordoni pet recognition failed', {
-          status: apiResponse.status,
-          code: upstreamCode,
-        });
-        return json(
-          {
-            error: 'Nakordoni rechazó la foto o la solicitud.',
-            upstreamStatus: apiResponse.status,
-            code: upstreamCode,
-          },
-          apiResponse.status === 429 ? 429 : 502,
-        );
-      }
-      const payload = result.data || result;
-      const breeds = Array.isArray(payload.breeds) ? payload.breeds.slice(0, 3) : [];
-      return json({
-        breeds: breeds
-          .map(({ id, name, score }) => ({
-            id: String(id ?? ''),
-            name: String(name ?? ''),
-            score: Number(score),
-          }))
-          .filter((breed) => breed.name && Number.isFinite(breed.score) && breed.score >= 0),
+      const result = await env.AI.run('@cf/microsoft/resnet-50', {
+        image: [...imageBytes],
       });
+      const predictions = Array.isArray(result)
+        ? result
+        : Array.isArray(result?.result)
+          ? result.result
+          : [];
+      const breeds = predictions
+        .map((prediction) => ({
+          name: String(prediction.label ?? '').trim(),
+          score: Number(prediction.score),
+        }))
+        .filter((prediction) =>
+          DOG_LABELS.has(prediction.name.toLowerCase()) &&
+          Number.isFinite(prediction.score) && prediction.score >= 0,
+        )
+        .slice(0, 3)
+        .map((prediction) => ({
+          id: prediction.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          ...prediction,
+        }));
+      return json({ breeds });
     } catch (_) {
-      return json({ error: 'No se pudo conectar con el servicio de razas.' }, 502);
+      console.error('Cloudflare Workers AI breed classification failed');
+      return json({ error: 'No se pudo analizar la foto con Cloudflare Workers AI.' }, 502);
     }
   },
 };

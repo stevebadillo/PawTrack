@@ -15,8 +15,7 @@ class BreedAnalysisService {
     final token = await FirebaseAuth.instance.currentUser?.getIdToken();
     if (token == null) throw StateError('Inicia sesión para analizar la foto.');
 
-    // Nakordoni requires the shorter image side to be at least 200 px. Small
-    // gallery images (including the 270x180 example) otherwise fail with 400.
+    // Upscale very small images before sending them to image classification.
     final imageForAnalysis = await _ensureMinimumSide(image, 200);
 
     final response = await http.post(
@@ -35,7 +34,7 @@ class BreedAnalysisService {
           final upstreamStatus = errorBody['upstreamStatus'];
           final code = errorBody['code'];
           if (upstreamStatus != null || code != null) {
-            errorMessage += ' · Nakordoni ${upstreamStatus ?? ''} ${code ?? ''}'.trim();
+            errorMessage += ' · Cloudflare AI ${upstreamStatus ?? ''} ${code ?? ''}'.trim();
           } else if (errorBody['error'] is String) {
             errorMessage += ' · ${errorBody['error']}';
           }

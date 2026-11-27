@@ -1,9 +1,12 @@
-# Proxy gratuito de análisis de razas
+# API gratuita de estimación de razas
 
-Este Worker mantiene la clave de Nakordoni fuera de la aplicación y solo acepta
-solicitudes autenticadas con un Firebase ID token de `pawtrack-espoch`.
+Este Worker usa el modelo `@cf/microsoft/resnet-50` de Cloudflare Workers AI y
+solo acepta solicitudes autenticadas con un Firebase ID token de
+`pawtrack-espoch`. No necesita clave de Nakordoni ni otra API key. Cloudflare
+incluye 10.000 Neurons diarios gratis; al agotarse, la inferencia falla hasta
+que se reinicie la cuota al día siguiente (no activa cobros en el plan Free).
 
-## Preparación única en una cuenta Cloudflare Free
+## Despliegue en una cuenta Cloudflare Free
 
 Desde PowerShell:
 
@@ -11,13 +14,10 @@ Desde PowerShell:
 cd cloudflare/breed_worker
 npm install
 npx wrangler login
-npx wrangler secret put NAKORDONI_API_KEY
 npx wrangler deploy
 ```
 
-Cuando Wrangler pida `NAKORDONI_API_KEY`, pegar la clave de Nakordoni en el
-prompt interactivo. No guardarla en archivos ni en Git. La URL que muestra el
-despliegue será parecida a `https://pawtrack-breed-api.<cuenta>.workers.dev`.
+El Worker usa Workers AI mediante el binding `[ai]` de `wrangler.toml`.
 
 ## Ejecutar PawTrack con el Worker
 
@@ -28,7 +28,7 @@ Wrangler:
 flutter run --dart-define=PAWTRACK_BREED_API_URL=https://pawtrack-breed-api.<cuenta>.workers.dev
 ```
 
-El plan gratuito de Workers tiene una cuota diaria. Nakordoni aplica además la
-cuota diaria del plan de la clave. Si un reporte está asociado a un perro, la
-app intenta guardar la estimación en la ficha; el reporte conserva el resultado
-si esa actualización no está permitida.
+La clasificación está basada en las razas y clases caninas de ImageNet, por lo
+que ofrece una estimación, no una confirmación veterinaria. Si un reporte está
+asociado a un perro, la app intenta guardar la estimación en su ficha; el
+reporte conserva el resultado si esa actualización no está permitida.
