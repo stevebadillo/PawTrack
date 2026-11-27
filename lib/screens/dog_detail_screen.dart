@@ -52,36 +52,19 @@ class DogDetailScreen extends StatelessWidget {
     }
   }
 
-<<<<<<< HEAD
-  Future<void> _confirmVaccineDeletion(
-      BuildContext context, Vaccine vaccine) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar vacuna'),
-        content: Text(
-          '¿Deseas eliminar el registro de "${vaccine.name}"?',
-        ),
-=======
   Future<void> _confirmDeleteVaccine(BuildContext context, Vaccine vaccine) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('¿Eliminar vacuna ${vaccine.name}?'),
         content: const Text('Esta acción eliminará el registro de la vacuna permanentemente.'),
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('Cancelar'),
           ),
           FilledButton(
-<<<<<<< HEAD
-            style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626)),
-=======
             style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Eliminar'),
           ),
@@ -93,11 +76,7 @@ class DogDetailScreen extends StatelessWidget {
       await DataService.deleteVaccine(dogId, vaccine.id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-<<<<<<< HEAD
-          const SnackBar(content: Text('Vacuna eliminada.')),
-=======
           const SnackBar(content: Text('Vacuna eliminada correctamente.')),
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
         );
       }
     } catch (e) {
@@ -109,17 +88,6 @@ class DogDetailScreen extends StatelessWidget {
     }
   }
 
-<<<<<<< HEAD
-  Future<void> _confirmMedicalEntryDeletion(
-      BuildContext context, MedicalEntry entry) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Eliminar registro médico'),
-        content: Text(
-          '¿Deseas eliminar "${entry.title}" del historial médico?',
-        ),
-=======
   Future<void> _confirmDeleteMedicalEntry(
       BuildContext context, String entryId, String title) async {
     final confirmed = await showDialog<bool>(
@@ -128,7 +96,6 @@ class DogDetailScreen extends StatelessWidget {
         title: Text('¿Eliminar entrada médica "$title"?'),
         content: const Text(
             'Esta acción eliminará este registro médico permanentemente.'),
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -145,28 +112,17 @@ class DogDetailScreen extends StatelessWidget {
     );
     if (confirmed != true) return;
     try {
-<<<<<<< HEAD
-      await DataService.deleteMedicalEntry(dogId, entry.id);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registro médico eliminado.')),
-=======
       await DataService.deleteMedicalEntry(dogId, entryId);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
               content: Text('Registro médico eliminado correctamente.')),
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-<<<<<<< HEAD
-          SnackBar(content: Text('No se pudo eliminar el registro: $e')),
-=======
           SnackBar(content: Text('No se pudo eliminar el registro médico: $e')),
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
         );
       }
     }
@@ -547,21 +503,13 @@ class DogDetailScreen extends StatelessWidget {
                               if (user.isStaff)
                                 IconButton(
                                   tooltip: 'Eliminar vacuna',
-<<<<<<< HEAD
-                                  onPressed: () =>
-                                      _confirmVaccineDeletion(context, v),
-=======
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
                                   icon: const Icon(
                                     Icons.delete_outline_rounded,
                                     color: Color(0xFFDC2626),
                                     size: 20,
                                   ),
-<<<<<<< HEAD
-=======
                                   onPressed: () =>
                                       _confirmDeleteVaccine(context, v),
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
                                 ),
                             ],
                           ),
@@ -636,14 +584,7 @@ class DogDetailScreen extends StatelessWidget {
                             title: entry.title,
                             description: entry.description,
                             documents: entry.documents,
-<<<<<<< HEAD
-                            onDelete: user.isStaff
-                                ? () => _confirmMedicalEntryDeletion(
-                                    context, entry)
-                                : null,
-=======
                             entryId: entry.id,
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
                           ),
                         ),
                     ],
@@ -715,11 +656,7 @@ class DogDetailScreen extends StatelessWidget {
     required String title,
     required String description,
     List<String> documents = const [],
-<<<<<<< HEAD
-    VoidCallback? onDelete,
-=======
     String? entryId,
->>>>>>> aa19d898aa8696f85fc590563a953783ab095b3b
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -802,16 +739,6 @@ class DogDetailScreen extends StatelessWidget {
               ],
             ),
           ),
-          if (onDelete != null)
-            IconButton(
-              tooltip: 'Eliminar registro médico',
-              onPressed: onDelete,
-              icon: const Icon(
-                Icons.delete_outline_rounded,
-                color: Color(0xFFDC2626),
-                size: 20,
-              ),
-            ),
         ],
       ),
     );
