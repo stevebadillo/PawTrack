@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
+import '../widgets/breed_analysis_card.dart';
 import 'dog_detail_screen.dart';
 import 'edit_report_screen.dart';
 import 'report_form_screen.dart';
@@ -1031,6 +1032,7 @@ class _ReportSheetState extends State<ReportSheet> {
           dogStatus: _currentReport.dogStatus,
           incidentType: _currentReport.incidentType,
           photos: _currentReport.photos,
+          breedAnalysis: _currentReport.breedAnalysis,
         );
       });
       if (mounted) {
@@ -1267,6 +1269,7 @@ class _ReportSheetState extends State<ReportSheet> {
             const SizedBox(height: 20),
 
             // Descripción Section (Image 4)
+            BreedAnalysisCard(breeds: r.breedAnalysis),
             const Text('Descripción', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0B2545))),
             const SizedBox(height: 10),
             Container(

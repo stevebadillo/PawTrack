@@ -49,6 +49,8 @@ app.*.map.json
 .widget_preview/
 
 node_modules/
+cloudflare/breed_worker/.wrangler-config/
+cloudflare/breed_worker/dist/
 calendario_credenciales.json
 .env
 linux/

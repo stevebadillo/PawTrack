@@ -7,6 +7,8 @@ import 'package:latlong2/latlong.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
 import '../services/location_service.dart';
+import '../services/breed_analysis_service.dart';
+import '../widgets/breed_analysis_card.dart';
 
 // ============================================================================
 // PANTALLA DE CREACIÓN DE REPORTE (ReportFormScreen)
@@ -31,6 +33,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
   double? _lng = -78.67508;
   bool _saving = false;
   bool _checkingPhoto = false;
+  List<BreedPrediction> _breedAnalysis = const [];
   String? _locError;
 
   // Opciones seleccionadas de estado del perro y tipo de incidencia
@@ -96,10 +99,29 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         }
 
         final bytes = await x.readAsBytes();
+        if (bytes.length > 5 * 1024 * 1024) {
+          if (mounted) {
+            setState(() => _checkingPhoto = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('La foto debe pesar menos de 5 MB.')),
+            );
+          }
+          return;
+        }
         if (mounted) setState(() {
           _photo = bytes;
-          _checkingPhoto = false;
+          _breedAnalysis = const [];
         });
+        try {
+          final breeds = await BreedAnalysisService.analyze(bytes);
+          if (mounted) setState(() => _breedAnalysis = breeds);
+        } catch (error) {
+          // Breed recognition is optional. Keep the report photo and allow
+          // the student to continue without an automatic breed suggestion.
+          debugPrint('Breed analysis unavailable: $error');
+        } finally {
+          if (mounted) setState(() => _checkingPhoto = false);
+        }
       }
     } catch (_) {
       if (mounted) {
@@ -131,7 +153,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
       // Sube la fotografía a Cloudinary y guarda únicamente los campos
       // estandarizados del reporte sin duplicar claves en español/inglés.
       final photoUrl = await DataService.uploadPhoto(_photo!, 'reportes');
-      await DataService.addReport({
+      final reportId = await DataService.addReport({
         'description': _desc.text.trim(),
         'photoUrl': photoUrl,
         'dogStatus': _dogStatus,
@@ -142,7 +164,20 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         if (_dog != null) 'dogName': _dog!.name,
         'reporterId': widget.user.uid,
         'reporterName': widget.user.name,
+        if (_breedAnalysis.isNotEmpty) 'breedAnalysis': _breedAnalysis.map((breed) => breed.toMap()).toList(),
+        if (_breedAnalysis.isNotEmpty) 'breedAnalyzedAt': DateTime.now(),
       });
+      if (_dog != null && _breedAnalysis.isNotEmpty) {
+        try {
+          await DataService.updateDogBreedAnalysisFromReport(
+            _dog!.id,
+            reportId,
+            _breedAnalysis.map((breed) => breed.toMap()).toList(),
+          );
+        } catch (_) {
+          // El reporte conserva el análisis aunque no se pueda actualizar la ficha.
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -234,6 +269,8 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
           const SizedBox(height: 10),
           _buildEvidenceCard(),
           const SizedBox(height: 22),
+            if (_breedAnalysis.isNotEmpty)
+              BreedAnalysisCard(breeds: _breedAnalysis),
 
           // 2. Estado del perro
           const Text(
@@ -334,7 +371,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                 backgroundColor: const Color(0xFF0D3B73),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
               ),
-              onPressed: _saving ? null : _send,
+              onPressed: (_saving || _checkingPhoto) ? null : _send,
               child: _saving
                   ? const SizedBox(
                       width: 20,

@@ -32,6 +32,22 @@ class AppUser {
 // Almacena los datos de identificación, rasgos físicos y estado sanitario
 // de cada perro registrado en el catálogo de la ESPOCH.
 // ============================================================================
+class BreedPrediction {
+  final String id;
+  final String name;
+  final double score;
+
+  const BreedPrediction({required this.id, required this.name, required this.score});
+
+  factory BreedPrediction.fromMap(Map<String, dynamic> map) => BreedPrediction(
+        id: map['id']?.toString() ?? '',
+        name: map['name']?.toString() ?? '',
+        score: (map['score'] as num?)?.toDouble() ?? 0,
+      );
+
+  Map<String, dynamic> toMap() => {'id': id, 'name': name, 'score': score};
+}
+
 class Dog {
   final String id, name, sex, color, description, photoUrl;
   final bool hasRedCollar;
@@ -39,6 +55,7 @@ class Dog {
   final String age; // Edad aproximada en años
   final String allergies; // Alergias conocidas
   final bool isSterilized; // Estado de esterilización
+  final List<BreedPrediction> breedAnalysis;
 
   Dog({
     required this.id,
@@ -52,6 +69,7 @@ class Dog {
     this.age = '3',
     this.allergies = 'Ninguna conocida',
     this.isSterilized = true,
+    this.breedAnalysis = const [],
   });
 
   // Comparación por ID para que funcione correctamente en selectores (Dropdown)
@@ -75,6 +93,11 @@ class Dog {
       age: m['age']?.toString() ?? m['edad']?.toString() ?? '3',
       allergies: m['allergies'] ?? m['alergias'] ?? 'Ninguna conocida',
       isSterilized: m['isSterilized'] ?? m['esterilizado'] ?? false,
+      breedAnalysis: (m['breedAnalysis'] as List?)
+              ?.whereType<Map>()
+              .map((e) => BreedPrediction.fromMap(Map<String, dynamic>.from(e)))
+              .toList() ??
+          const [],
     );
   }
 }
@@ -178,6 +201,7 @@ class Report {
   final String dogStatus; // 'con_vida', 'herido', 'sin_vida', 'no_se'
   final String incidentType; // 'perdido', 'agresivo', 'otro'
   final List<String> photos; // Lista de fotos en base64 o URL
+  final List<BreedPrediction> breedAnalysis;
 
   Report({
     required this.id,
@@ -197,6 +221,7 @@ class Report {
     this.dogStatus = 'herido',
     this.incidentType = 'perdido',
     this.photos = const [],
+    this.breedAnalysis = const [],
   });
 
   // Verifica si el reporte corresponde a un perro aún no identificado
@@ -235,6 +260,11 @@ class Report {
       dogStatus: m['dogStatus'] ?? m['estadoPerro'] ?? 'herido',
       incidentType: m['incidentType'] ?? m['tipoIncidencia'] ?? m['tipo'] ?? 'perdido',
       photos: parsedPhotos,
+      breedAnalysis: (m['breedAnalysis'] as List?)
+              ?.whereType<Map>()
+              .map((e) => BreedPrediction.fromMap(Map<String, dynamic>.from(e)))
+              .toList() ??
+          const [],
     );
   }
 }
