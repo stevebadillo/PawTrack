@@ -81,8 +81,19 @@ export default {
       if (apiResponse.status === 404) return json({ breeds: [] });
       const result = await apiResponse.json();
       if (!apiResponse.ok) {
+        const upstreamCode = typeof result.error?.code === 'string'
+          ? result.error.code
+          : 'unknown';
+        console.error('Nakordoni pet recognition failed', {
+          status: apiResponse.status,
+          code: upstreamCode,
+        });
         return json(
-          { error: 'El servicio de análisis de razas no está disponible ahora.' },
+          {
+            error: 'Nakordoni rechazó la foto o la solicitud.',
+            upstreamStatus: apiResponse.status,
+            code: upstreamCode,
+          },
           apiResponse.status === 429 ? 429 : 502,
         );
       }

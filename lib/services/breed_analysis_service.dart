@@ -28,7 +28,22 @@ class BreedAnalysisService {
       body: jsonEncode({'imageBase64': base64Encode(imageForAnalysis)}),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('No se pudo analizar la foto (${response.statusCode}).');
+      var errorMessage = 'HTTP ${response.statusCode}';
+      try {
+        final errorBody = jsonDecode(response.body);
+        if (errorBody is Map<String, dynamic>) {
+          final upstreamStatus = errorBody['upstreamStatus'];
+          final code = errorBody['code'];
+          if (upstreamStatus != null || code != null) {
+            errorMessage += ' · Nakordoni ${upstreamStatus ?? ''} ${code ?? ''}'.trim();
+          } else if (errorBody['error'] is String) {
+            errorMessage += ' · ${errorBody['error']}';
+          }
+        }
+      } catch (_) {
+        // Keep the HTTP status if the proxy didn't return JSON.
+      }
+      throw Exception(errorMessage);
     }
     final data = jsonDecode(response.body);
     final raw = data is Map<String, dynamic> ? data['breeds'] : null;
