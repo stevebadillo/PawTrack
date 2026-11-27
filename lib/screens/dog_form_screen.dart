@@ -94,7 +94,7 @@ class _DogFormScreenState extends State<DogFormScreen> {
           if (mounted) setState(() => _breedAnalysis = breeds);
         } catch (error) {
           // Breed recognition is optional. Keep the photo and let staff choose
-          // the breed manually when Nakordoni is unavailable.
+          // the breed manually when automatic classification is unavailable.
           debugPrint('Breed analysis unavailable: $error');
         } finally {
           if (mounted) setState(() => _analyzingBreed = false);

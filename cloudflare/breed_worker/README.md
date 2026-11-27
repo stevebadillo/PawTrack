@@ -2,8 +2,8 @@
 
 Este Worker usa el modelo `@cf/microsoft/resnet-50` de Cloudflare Workers AI y
 solo acepta solicitudes autenticadas con un Firebase ID token de
-`pawtrack-espoch`. No necesita clave de Nakordoni ni otra API key. Cloudflare
-incluye 10.000 Neurons diarios gratis; al agotarse, la inferencia falla hasta
+`pawtrack-espoch`. No necesita ninguna API key. Cloudflare incluye 10.000
+Neurons diarios gratis; al agotarse, la inferencia falla hasta
 que se reinicie la cuota al día siguiente (no activa cobros en el plan Free).
 
 ## Despliegue en una cuenta Cloudflare Free
