@@ -93,13 +93,9 @@ class _DogFormScreenState extends State<DogFormScreen> {
           final breeds = await BreedAnalysisService.analyze(bytes);
           if (mounted) setState(() => _breedAnalysis = breeds);
         } catch (error) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(
-                'No se pudo estimar la raza: ${error.toString().replaceFirst('Exception: ', '')}',
-              )),
-            );
-          }
+          // Breed recognition is optional. Keep the photo and let staff choose
+          // the breed manually when Nakordoni is unavailable.
+          debugPrint('Breed analysis unavailable: $error');
         } finally {
           if (mounted) setState(() => _analyzingBreed = false);
         }

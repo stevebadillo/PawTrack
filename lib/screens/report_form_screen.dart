@@ -116,13 +116,9 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
           final breeds = await BreedAnalysisService.analyze(bytes);
           if (mounted) setState(() => _breedAnalysis = breeds);
         } catch (error) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(
-                'No se pudo estimar la raza: ${error.toString().replaceFirst('Exception: ', '')}',
-              )),
-            );
-          }
+          // Breed recognition is optional. Keep the report photo and allow
+          // the student to continue without an automatic breed suggestion.
+          debugPrint('Breed analysis unavailable: $error');
         } finally {
           if (mounted) setState(() => _checkingPhoto = false);
         }
