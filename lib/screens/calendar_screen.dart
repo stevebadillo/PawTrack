@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/models.dart';
@@ -13,12 +14,14 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _focusedMonth =
+      DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _selectedDay = DateTime.now();
 
   void _changeMonth(int increment) {
     setState(() {
-      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + increment, 1);
+      _focusedMonth =
+          DateTime(_focusedMonth.year, _focusedMonth.month + increment, 1);
     });
   }
 
@@ -32,8 +35,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Corregido: se removió el parámetro 'es' para evitar LocaleDataException
-    final monthTitle = DateFormat('MMM. yyyy').format(_focusedMonth).toUpperCase();
+    final monthTitle =
+        DateFormat('MMM. yyyy').format(_focusedMonth).toUpperCase();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -56,7 +59,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: const Center(
-                      child: Icon(Icons.chevron_left_rounded, color: Color(0xFF06397b), size: 26),
+                      child: Icon(Icons.chevron_left_rounded,
+                          color: Color(0xFF06397b), size: 26),
                     ),
                   ),
                 ),
@@ -71,7 +75,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                   ),
                 ),
-                // Botón para ir al día actual
                 InkWell(
                   onTap: _goToToday,
                   borderRadius: BorderRadius.circular(12),
@@ -103,17 +106,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
       body: StreamBuilder<List<Dog>>(
         stream: DataService.dogs(),
         builder: (context, dogSnapshot) {
-          final dogs = dogSnapshot.data ?? [];
+          final dogs = dogSnapshot.data ?? const <Dog>[];
 
           return StreamBuilder<List<_CalendarEvent>>(
             stream: _loadAllEvents(dogs),
             builder: (context, eventSnapshot) {
-              final events = eventSnapshot.data ?? [];
+              final events = eventSnapshot.data ?? const <_CalendarEvent>[];
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
                 children: [
-                  // ── WIDGET DE CALENDARIO MENSUAL ──
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -130,11 +132,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                     child: Column(
                       children: [
-                        // Cabecera del widget: < NOV. 2026 >
                         Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.chevron_left_rounded, color: Color(0xFF06397b)),
+                              icon: const Icon(Icons.chevron_left_rounded,
+                                  color: Color(0xFF06397b)),
                               onPressed: () => _changeMonth(-1),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
@@ -150,21 +152,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                             const SizedBox(width: 12),
                             IconButton(
-                              icon: const Icon(Icons.chevron_right_rounded, color: Color(0xFF06397b)),
+                              icon: const Icon(Icons.chevron_right_rounded,
+                                  color: Color(0xFF06397b)),
                               onPressed: () => _changeMonth(1),
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                             ),
                             const Spacer(),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFEFF6FF),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: const Row(
                                 children: [
-                                  Icon(Icons.pets, size: 14, color: Color(0xFF06397b)),
+                                  Icon(Icons.pets,
+                                      size: 14, color: Color(0xFF06397b)),
                                   SizedBox(width: 4),
                                   Text(
                                     'PawTrack',
@@ -180,11 +185,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-
-                        // Cabecera de días (Domingo en rojo)
                         const Row(
                           children: [
-                            Expanded(child: _WeekDayLabel('DOM.', isSunday: true)),
+                            Expanded(
+                                child: _WeekDayLabel('DOM.', isSunday: true)),
                             Expanded(child: _WeekDayLabel('LUN.')),
                             Expanded(child: _WeekDayLabel('MAR.')),
                             Expanded(child: _WeekDayLabel('MIÉ.')),
@@ -194,21 +198,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-
-                        // Cuadrícula de celdas con eventos
                         _WidgetMonthGrid(
                           focusedMonth: _focusedMonth,
                           selectedDay: _selectedDay,
                           events: events,
-                          onDaySelected: (day) => setState(() => _selectedDay = day),
+                          onDaySelected: (day) =>
+                              setState(() => _selectedDay = day),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // ── DETALLE DEL DÍA SELECCIONADO ──
-                  // Corregido: se removió el parámetro 'es'
                   Text(
                     'Agenda del ${DateFormat('dd MMMM yyyy').format(_selectedDay)}',
                     style: const TextStyle(
@@ -228,44 +228,123 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Stream<List<_CalendarEvent>> _loadAllEvents(List<Dog> dogs) async* {
-    List<_CalendarEvent> allEvents = [];
-    for (final dog in dogs) {
-      final vaccines = await DataService.vaccines(dog.id).first;
-      for (final v in vaccines) {
-        if (v.nextDate != null) {
-          allEvents.add(_CalendarEvent(
-            dogName: dog.name,
-            shortLabel: 'Ref. ${v.name}',
-            title: 'Próximo refuerzo: ${v.name}',
-            date: v.nextDate!,
-            type: 'Vacuna',
-            color: const Color(0xFF16A34A), // Verde
-          ));
+  Stream<List<_CalendarEvent>> _loadAllEvents(List<Dog> dogs) {
+    if (dogs.isEmpty) {
+      return Stream.value(const <_CalendarEvent>[]);
+    }
+
+    final dogStreams = dogs.map((dog) {
+      return Stream<List<_CalendarEvent>>.multi((controller) {
+        List<Vaccine> latestVaccines = const <Vaccine>[];
+        List<MedicalEntry> latestEntries = const <MedicalEntry>[];
+
+        void emitCombined() {
+          final dogEvents = <_CalendarEvent>[];
+
+          for (final v in latestVaccines) {
+            if (v.nextDate != null) {
+              dogEvents.add(
+                _CalendarEvent(
+                  dogName: dog.name,
+                  shortLabel: 'Ref. ${v.name}',
+                  title: 'Próximo refuerzo: ${v.name}',
+                  date: v.nextDate!,
+                  type: 'Vacuna',
+                  color: const Color(0xFF16A34A),
+                ),
+              );
+            }
+            dogEvents.add(
+              _CalendarEvent(
+                dogName: dog.name,
+                shortLabel: v.name,
+                title: 'Vacuna aplicada: ${v.name}',
+                date: v.appliedAt,
+                type: 'Vacuna',
+                color: const Color(0xFF06397b),
+              ),
+            );
+          }
+
+          for (final e in latestEntries) {
+            dogEvents.add(
+              _CalendarEvent(
+                dogName: dog.name,
+                shortLabel: e.title,
+                title: e.title,
+                date: e.date,
+                type: 'Historial',
+                color: const Color(0xFFD97706),
+              ),
+            );
+
+            if (e.nextVisit != null) {
+              dogEvents.add(
+                _CalendarEvent(
+                  dogName: dog.name,
+                  shortLabel: 'Cita: ${e.title}',
+                  title: 'Próxima visita: ${e.title}',
+                  date: e.nextVisit!,
+                  type: 'Historial',
+                  color: const Color(0xFFEA580C),
+                ),
+              );
+            }
+          }
+
+          if (!controller.isClosed) {
+            controller.add(dogEvents);
+          }
         }
-        allEvents.add(_CalendarEvent(
-          dogName: dog.name,
-          shortLabel: v.name,
-          title: 'Vacuna aplicada: ${v.name}',
-          date: v.appliedAt,
-          type: 'Vacuna',
-          color: const Color(0xFF06397b), // Azul institucional
-        ));
+
+        final vacSub = DataService.vaccines(dog.id).listen(
+          (vaccines) {
+            latestVaccines = vaccines;
+            emitCombined();
+          },
+          onError: controller.addError,
+        );
+
+        final medSub = DataService.medicalEntries(dog.id).listen(
+          (entries) {
+            latestEntries = entries;
+            emitCombined();
+          },
+          onError: controller.addError,
+        );
+
+        controller.onCancel = () async {
+          await vacSub.cancel();
+          await medSub.cancel();
+        };
+      });
+    }).toList();
+
+    return Stream<List<_CalendarEvent>>.multi((controller) {
+      final latestByDog =
+          List<List<_CalendarEvent>>.filled(dogStreams.length, const []);
+      final subs = <StreamSubscription<List<_CalendarEvent>>>[];
+
+      for (var i = 0; i < dogStreams.length; i++) {
+        subs.add(
+          dogStreams[i].listen(
+            (events) {
+              latestByDog[i] = events;
+              if (!controller.isClosed) {
+                controller.add(latestByDog.expand((x) => x).toList());
+              }
+            },
+            onError: controller.addError,
+          ),
+        );
       }
 
-      final entries = await DataService.medicalEntries(dog.id).first;
-      for (final e in entries) {
-        allEvents.add(_CalendarEvent(
-          dogName: dog.name,
-          shortLabel: e.title,
-          title: e.title,
-          date: e.date,
-          type: 'Historial',
-          color: const Color(0xFFD97706), // Ámbar para historial médico
-        ));
-      }
-    }
-    yield allEvents;
+      controller.onCancel = () async {
+        for (final sub in subs) {
+          await sub.cancel();
+        }
+      };
+    });
   }
 }
 
@@ -306,7 +385,8 @@ class _WidgetMonthGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final firstDayOfMonth = DateTime(focusedMonth.year, focusedMonth.month, 1);
     final weekdayOffset = firstDayOfMonth.weekday % 7;
-    final daysInMonth = DateTime(focusedMonth.year, focusedMonth.month + 1, 0).day;
+    final daysInMonth =
+        DateTime(focusedMonth.year, focusedMonth.month + 1, 0).day;
     final totalCells = ((weekdayOffset + daysInMonth) / 7).ceil() * 7;
 
     return GridView.builder(
@@ -325,7 +405,8 @@ class _WidgetMonthGrid extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
-        final currentDate = DateTime(focusedMonth.year, focusedMonth.month, dayNumber);
+        final currentDate =
+            DateTime(focusedMonth.year, focusedMonth.month, dayNumber);
         final isSunday = currentDate.weekday == DateTime.sunday;
         final isSelected = selectedDay.year == currentDate.year &&
             selectedDay.month == currentDate.month &&
@@ -334,10 +415,12 @@ class _WidgetMonthGrid extends StatelessWidget {
             DateTime.now().month == currentDate.month &&
             DateTime.now().day == currentDate.day;
 
-        final dayEvents = events.where((e) =>
-            e.date.year == currentDate.year &&
-            e.date.month == currentDate.month &&
-            e.date.day == currentDate.day).toList();
+        final dayEvents = events
+            .where((e) =>
+                e.date.year == currentDate.year &&
+                e.date.month == currentDate.month &&
+                e.date.day == currentDate.day)
+            .toList();
 
         return GestureDetector(
           onTap: () => onDaySelected(currentDate),
@@ -347,7 +430,9 @@ class _WidgetMonthGrid extends StatelessWidget {
               color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: isSelected ? const Color(0xFF06397b) : const Color(0xFFF1F5F9),
+                color: isSelected
+                    ? const Color(0xFF06397b)
+                    : const Color(0xFFF1F5F9),
                 width: isSelected ? 1.5 : 1,
               ),
             ),
@@ -356,9 +441,12 @@ class _WidgetMonthGrid extends StatelessWidget {
               children: [
                 Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
-                      color: isToday ? const Color(0xFF16A34A) : Colors.transparent,
+                      color: isToday
+                          ? const Color(0xFF16A34A)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -368,7 +456,9 @@ class _WidgetMonthGrid extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         color: isToday
                             ? Colors.white
-                            : (isSunday ? const Color(0xFFDC2626) : const Color(0xFF0F2B48)),
+                            : (isSunday
+                                ? const Color(0xFFDC2626)
+                                : const Color(0xFF0F2B48)),
                       ),
                     ),
                   ),
@@ -377,7 +467,8 @@ class _WidgetMonthGrid extends StatelessWidget {
                 ...dayEvents.take(2).map(
                       (ev) => Container(
                         margin: const EdgeInsets.only(bottom: 2),
-                        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 3, vertical: 1.5),
                         decoration: BoxDecoration(
                           color: ev.color,
                           borderRadius: BorderRadius.circular(4),
@@ -411,10 +502,12 @@ class _DayEventsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dayEvents = events.where((e) =>
-        e.date.year == selectedDay.year &&
-        e.date.month == selectedDay.month &&
-        e.date.day == selectedDay.day).toList();
+    final dayEvents = events
+        .where((e) =>
+            e.date.year == selectedDay.year &&
+            e.date.month == selectedDay.month &&
+            e.date.day == selectedDay.day)
+        .toList();
 
     if (dayEvents.isEmpty) {
       return Container(
@@ -478,7 +571,8 @@ class _DayEventsList extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: ev.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),

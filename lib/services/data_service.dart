@@ -290,6 +290,20 @@ class DataService {
     });
   }
 
+  static Future<void> deleteVaccine(String dogId, String vaccineId) async {
+    await _db
+        .collection('$dogCollection/$dogId/$vaccineCollection')
+        .doc(vaccineId)
+        .delete();
+  }
+
+  static Future<void> deleteMedicalEntry(String dogId, String entryId) async {
+    await _db
+        .collection('$dogCollection/$dogId/$medicalCollection')
+        .doc(entryId)
+        .delete();
+  }
+
   static Future<void> addReport(Map<String, dynamic> data) async {
     final docRef = await _db.collection(reportCollection).add({
       ...data,

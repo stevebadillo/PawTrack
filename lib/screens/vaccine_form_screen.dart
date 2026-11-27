@@ -19,7 +19,8 @@ class _VaccineFormScreenState extends State<VaccineFormScreen> {
   final _notes = TextEditingController();
   bool _saving = false;
 
-  final _fmt = DateFormat('dd/MM/yyyy');
+  final _dateFmt = DateFormat('dd/MM/yyyy');
+  final _dateTimeFmt = DateFormat('dd/MM/yyyy · HH:mm');
 
   final List<String> _vaccines = [
     'Rabia',
@@ -37,43 +38,77 @@ class _VaccineFormScreenState extends State<VaccineFormScreen> {
   }
 
   Future<void> _pickAppliedDate() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _appliedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (d != null) setState(() => _appliedDate = d);
-  }
+    final now = DateTime.now();
+    final safeInitial = _appliedDate.isAfter(now) ? now : _appliedDate;
 
-Future<void> _pickNextDate() async {
     final d = await showDatePicker(
       context: context,
-      initialDate: _appliedDate.add(const Duration(days: 365)),
-      firstDate: _appliedDate,
-      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
+      initialDate: safeInitial,
+      firstDate: DateTime(2020),
+      lastDate: now,
     );
     if (d == null) return;
 
-    if (!mounted) return;
+    setState(() {
+      _appliedDate = DateTime(d.year, d.month, d.day);
+      if (_nextDate != null && _nextDate!.isBefore(_appliedDate)) {
+        _nextDate = DateTime(
+          _appliedDate.year + 1,
+          _appliedDate.month,
+          _appliedDate.day,
+          _nextDate!.hour,
+          _nextDate!.minute,
+        );
+      }
+    });
+  }
+
+  Future<void> _pickNextDate() async {
+    final firstAllowed = DateTime(
+      _appliedDate.year,
+      _appliedDate.month,
+      _appliedDate.day,
+    );
+    final lastAllowed = DateTime.now().add(const Duration(days: 365 * 5));
+    final defaultCandidate =
+        _nextDate ?? _appliedDate.add(const Duration(days: 365));
+    final safeInitial = defaultCandidate.isBefore(firstAllowed)
+        ? firstAllowed
+        : (defaultCandidate.isAfter(lastAllowed)
+            ? lastAllowed
+            : defaultCandidate);
+
+    final d = await showDatePicker(
+      context: context,
+      initialDate: safeInitial,
+      firstDate: firstAllowed,
+      lastDate: lastAllowed,
+    );
+    if (d == null || !mounted) return;
+
+    final initialTime = _nextDate != null
+        ? TimeOfDay.fromDateTime(_nextDate!)
+        : const TimeOfDay(hour: 10, minute: 0);
+
     final t = await showTimePicker(
       context: context,
-      initialTime: const TimeOfDay(hour: 10, minute: 0),
+      initialTime: initialTime,
+      helpText: 'Selecciona la hora de la próxima dosis',
     );
-    if (t == null) return;
+    if (t == null || !mounted) return;
 
     setState(() {
       _nextDate = DateTime(d.year, d.month, d.day, t.hour, t.minute);
     });
   }
 
-Future<void> _save() async {
+  Future<void> _save() async {
     setState(() => _saving = true);
     try {
       final vaccineData = {
         'name': _selectedVaccine,
         'appliedAt': _appliedDate,
-        'nextDate': _nextDate, // Ya contiene fecha y hora (DateTime) para Google Calendar
+        'nextDate': _nextDate,
         'notes': _notes.text.trim(),
       };
 
@@ -101,8 +136,8 @@ Future<void> _save() async {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al guardar vacuna: $e')),
         );
+        setState(() => _saving = false);
       }
-      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -130,7 +165,11 @@ Future<void> _save() async {
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: const Center(
-                      child: Icon(Icons.chevron_left_rounded, color: Color(0xFF0F2B48), size: 26),
+                      child: Icon(
+                        Icons.chevron_left_rounded,
+                        color: Color(0xFF06397b),
+                        size: 26,
+                      ),
                     ),
                   ),
                 ),
@@ -139,7 +178,7 @@ Future<void> _save() async {
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F2B48),
+                    color: Color(0xFF06397b),
                   ),
                 ),
                 const SizedBox(width: 42),
@@ -151,8 +190,8 @@ Future<void> _save() async {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 110),
         children: [
-          // Dog Mini Card (Warm beige)
-          if (widget.dog != null || (widget.dogName != null && widget.dogName!.isNotEmpty))
+          if (widget.dog != null ||
+              (widget.dogName != null && widget.dogName!.isNotEmpty))
             Container(
               padding: const EdgeInsets.all(16),
               margin: const EdgeInsets.only(bottom: 24),
@@ -180,11 +219,19 @@ Future<void> _save() async {
                     children: [
                       const Text(
                         'Perro',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         widget.dog?.name ?? widget.dogName ?? '',
-                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: Color(0xFF0B2545)),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                          color: Color(0xFF0B2545),
+                        ),
                       ),
                     ],
                   ),
@@ -192,10 +239,13 @@ Future<void> _save() async {
               ),
             ),
 
-          // 1. Vacuna aplicada Dropdown
           const Text(
             'Vacuna aplicada',
-            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0B2545),
+            ),
           ),
           const SizedBox(height: 8),
           Container(
@@ -209,13 +259,20 @@ Future<void> _save() async {
               child: DropdownButton<String>(
                 value: _selectedVaccine,
                 isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF0F2B48)),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: Color(0xFF06397b),
+                ),
                 items: _vaccines.map((v) {
                   return DropdownMenuItem(
                     value: v,
                     child: Text(
                       v,
-                      style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F2B48), fontSize: 14),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF06397b),
+                        fontSize: 14,
+                      ),
                     ),
                   );
                 }).toList(),
@@ -227,10 +284,13 @@ Future<void> _save() async {
           ),
           const SizedBox(height: 20),
 
-          // 2. Fecha de aplicación
           const Text(
             'Fecha de aplicación',
-            style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF0B2545),
+            ),
           ),
           const SizedBox(height: 8),
           InkWell(
@@ -243,24 +303,45 @@ Future<void> _save() async {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: Text(
-                _fmt.format(_appliedDate),
-                style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF0B2545), fontSize: 14),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 18,
+                    color: Color(0xFF06397b),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    _dateFmt.format(_appliedDate),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0B2545),
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 20),
 
-          // 3. Próxima dosis (opcional)
           const Row(
             children: [
               Text(
                 'Próxima dosis ',
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0B2545),
+                ),
               ),
               Text(
                 '(opcional)',
-                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -275,28 +356,61 @@ Future<void> _save() async {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
-              child: Text(
-                _nextDate != null ? _fmt.format(_nextDate!) : 'dd/mm/aaaa',
-                style: TextStyle(
-                  fontWeight: _nextDate != null ? FontWeight.w800 : FontWeight.w500,
-                  color: _nextDate != null ? const Color(0xFF0B2545) : const Color(0xFF94A3B8),
-                  fontSize: 14,
-                ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.event_available_outlined,
+                    size: 18,
+                    color: Color(0xFF16A34A),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      _nextDate != null
+                          ? _dateTimeFmt.format(_nextDate!)
+                          : 'Seleccionar fecha y hora',
+                      style: TextStyle(
+                        fontWeight:
+                            _nextDate != null ? FontWeight.w800 : FontWeight.w500,
+                        color: _nextDate != null
+                            ? const Color(0xFF0B2545)
+                            : const Color(0xFF94A3B8),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  if (_nextDate != null)
+                    GestureDetector(
+                      onTap: () => setState(() => _nextDate = null),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
           const SizedBox(height: 20),
 
-          // 4. Notas (opcional)
           const Row(
             children: [
               Text(
                 'Notas ',
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0B2545),
+                ),
               ),
               Text(
                 '(opcional)',
-                style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF94A3B8),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -333,27 +447,44 @@ Future<void> _save() async {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0D3B73),
+                    foregroundColor: const Color(0xFF06397b),
                     side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.w700)),
+                  child: const Text(
+                    'Cancelar',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D3B73),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                    backgroundColor: const Color(0xFF06397b),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                   onPressed: _saving ? null : _save,
                   child: _saving
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                      : const Text('Guardar vacuna', style: TextStyle(fontWeight: FontWeight.w800)),
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Guardar vacuna',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
                 ),
               ),
             ],

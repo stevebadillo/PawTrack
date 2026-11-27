@@ -38,33 +38,62 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
   }
 
   Future<void> _pickDate() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (d != null) setState(() => _date = d);
-  }
+    final now = DateTime.now();
+    final safeInitial = _date.isAfter(now) ? now : _date;
 
-  Future<void> _pickNextVisit() async {
     final d = await showDatePicker(
       context: context,
-      initialDate: _date.add(const Duration(days: 14)),
-      firstDate: _date,
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: safeInitial,
+      firstDate: DateTime(2020),
+      lastDate: now,
     );
     if (d == null) return;
 
-    if (!mounted) return;
+    setState(() {
+      _date = DateTime(d.year, d.month, d.day, _date.hour, _date.minute);
+      if (_nextVisit != null && _nextVisit!.isBefore(_date)) {
+        _nextVisit = DateTime(
+          _date.year,
+          _date.month,
+          _date.day + 14,
+          _nextVisit!.hour,
+          _nextVisit!.minute,
+        );
+      }
+    });
+  }
+
+  Future<void> _pickNextVisit() async {
+    final firstAllowed = DateTime(_date.year, _date.month, _date.day);
+    final lastAllowed = DateTime.now().add(const Duration(days: 365 * 3));
+    final defaultCandidate = _nextVisit ?? _date.add(const Duration(days: 14));
+    final safeInitial = defaultCandidate.isBefore(firstAllowed)
+        ? firstAllowed
+        : (defaultCandidate.isAfter(lastAllowed) ? lastAllowed : defaultCandidate);
+
+    final d = await showDatePicker(
+      context: context,
+      initialDate: safeInitial,
+      firstDate: firstAllowed,
+      lastDate: lastAllowed,
+    );
+    if (d == null || !mounted) return;
+
+    final initialTime = _nextVisit != null
+        ? TimeOfDay.fromDateTime(_nextVisit!)
+        : const TimeOfDay(hour: 10, minute: 0);
+
     final t = await showTimePicker(
       context: context,
-      initialTime: const TimeOfDay(hour: 10, minute: 0),
+      initialTime: initialTime,
     );
-    if (t == null) return;
+
+    // Si cancela la hora, se conserva la fecha elegida a las 10:00
+    final hour = t?.hour ?? 10;
+    final minute = t?.minute ?? 0;
 
     setState(() {
-      _nextVisit = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+      _nextVisit = DateTime(d.year, d.month, d.day, hour, minute);
     });
   }
 
@@ -119,7 +148,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
 
     setState(() => _saving = true);
     try {
-      final entryData = {
+      final entryData = <String, dynamic>{
         'title': _title.text.trim(),
         'description': _desc.text.trim(),
         'date': _date,
@@ -189,7 +218,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
                     ),
                     child: const Center(
                       child: Icon(Icons.chevron_left_rounded,
-                          color: Color(0xFF0F2B48), size: 26),
+                          color: Color(0xFF06397b), size: 26),
                     ),
                   ),
                 ),
@@ -198,7 +227,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F2B48),
+                    color: Color(0xFF06397b),
                   ),
                 ),
                 const SizedBox(width: 42),
@@ -225,7 +254,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
               child: Row(
                 children: [
                   const Icon(Icons.calendar_today_outlined,
-                      size: 18, color: Color(0xFF64748B)),
+                      size: 18, color: Color(0xFF06397b)),
                   const SizedBox(width: 12),
                   Text(_fmt.format(_date),
                       style: const TextStyle(
@@ -302,23 +331,34 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today_outlined,
-                      size: 18, color: Color(0xFF64748B)),
+                  const Icon(Icons.event_available_outlined,
+                      size: 18, color: Color(0xFF16A34A)),
                   const SizedBox(width: 12),
-                  Text(
-                    _nextVisit != null
-                        ? _fmt.format(_nextVisit!)
-                        : 'Selecciona una fecha',
-                    style: TextStyle(
-                      fontWeight: _nextVisit != null
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: _nextVisit != null
-                          ? const Color(0xFF0B2545)
-                          : const Color(0xFF94A3B8),
-                      fontSize: 14,
+                  Expanded(
+                    child: Text(
+                      _nextVisit != null
+                          ? _fmt.format(_nextVisit!)
+                          : 'Selecciona una fecha',
+                      style: TextStyle(
+                        fontWeight: _nextVisit != null
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: _nextVisit != null
+                            ? const Color(0xFF0B2545)
+                            : const Color(0xFF94A3B8),
+                        fontSize: 14,
+                      ),
                     ),
                   ),
+                  if (_nextVisit != null)
+                    GestureDetector(
+                      onTap: () => setState(() => _nextVisit = null),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        size: 18,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -408,7 +448,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0D3B73),
+                    foregroundColor: const Color(0xFF06397b),
                     side: const BorderSide(color: Color(0xFFCBD5E1)),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(25)),
@@ -423,7 +463,7 @@ class _MedicalEntryScreenState extends State<MedicalEntryScreen> {
               Expanded(
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D3B73),
+                    backgroundColor: const Color(0xFF06397b),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(25)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -501,3 +541,4 @@ class _MedicalAttachment {
     required this.isPdf,
   });
 }
+

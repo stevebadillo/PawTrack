@@ -1,82 +1,637 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/models.dart';
 import '../services/auth_service.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   final AppUser user;
   const SettingsScreen({super.key, required this.user});
 
   @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  static const List<String> _styles = [
+    'critters',
+    'fun-emoji',
+    'thumbs',
+  ];
+
+  final ImagePicker _picker = ImagePicker();
+
+  late String _style;
+  late String _seed;
+  String? _avatarBase64;
+  Uint8List? _avatarBytes;
+  bool _savingAvatar = false;
+
+  String get _userKey {
+    final authUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (authUid.isNotEmpty) return authUid;
+    if (widget.user.email.isNotEmpty) return widget.user.email;
+    return widget.user.name;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _style = 'critters';
+    _seed = _userKey;
+    _loadSavedAvatar();
+  }
+
+  String _dicebearUrl(String style, String seed, {int size = 160}) =>
+      'https://api.dicebear.com/9.x/$style/png?seed=${Uri.encodeComponent(seed)}&size=$size';
+
+  Future<void> _loadSavedAvatar() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isEmpty) return;
+    try {
+      final doc =
+          await FirebaseFirestore.instance.collection('usuarios').doc(uid).get();
+      final data = doc.data();
+      if (data != null && mounted) {
+        final savedStyle = data['avatarStyle'] as String?;
+        final savedSeed = data['avatarSeed'] as String?;
+        final savedBase64 = data['avatarBase64'] as String?;
+
+        Uint8List? decodedBytes;
+        if (savedBase64 != null && savedBase64.isNotEmpty) {
+          try {
+            decodedBytes = base64Decode(savedBase64);
+          } catch (_) {
+            decodedBytes = null;
+          }
+        }
+
+        setState(() {
+          if (savedStyle != null && _styles.contains(savedStyle)) {
+            _style = savedStyle;
+          }
+          if (savedSeed != null && savedSeed.isNotEmpty) {
+            _seed = savedSeed;
+          }
+          if (decodedBytes != null && decodedBytes.isNotEmpty) {
+            _avatarBase64 = savedBase64;
+            _avatarBytes = decodedBytes;
+          } else {
+            _avatarBase64 = null;
+            _avatarBytes = null;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _persistDicebearAvatar(String newStyle, String newSeed) async {
+    setState(() {
+      _style = newStyle;
+      _seed = newSeed;
+      _avatarBase64 = null;
+      _avatarBytes = null;
+      _savingAvatar = true;
+    });
+
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    if (uid.isNotEmpty) {
+      try {
+        await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(uid)
+            .set(
+          {
+            'avatarType': 'dicebear',
+            'avatarStyle': newStyle,
+            'avatarSeed': newSeed,
+            'avatarBase64': FieldValue.delete(),
+          },
+          SetOptions(merge: true),
+        );
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No se pudo guardar el avatar: $e')),
+          );
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() => _savingAvatar = false);
+    }
+  }
+
+  Future<void> _pickAndPersistPhoto() async {
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+      if (picked == null) return;
+
+      final bytes = await picked.readAsBytes();
+      if (bytes.isEmpty) return;
+
+      // Firestore tiene límite de ~1 MB por documento; cuidamos el tamaño del base64.
+      if (bytes.length > 700000) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('La imagen es muy pesada. Elige una más ligera.'),
+            ),
+          );
+        }
+        return;
+      }
+
+      final encoded = base64Encode(bytes);
+      setState(() {
+        _avatarBytes = bytes;
+        _avatarBase64 = encoded;
+        _savingAvatar = true;
+      });
+
+      final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (uid.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(uid)
+            .set(
+          {
+            'avatarType': 'photo',
+            'avatarBase64': encoded,
+          },
+          SetOptions(merge: true),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo subir la foto: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _savingAvatar = false);
+      }
+    }
+  }
+
+  ImageProvider _currentAvatarImage({
+    String? tempStyle,
+    String? tempSeed,
+    Uint8List? tempBytes,
+    int size = 160,
+  }) {
+    if (tempBytes != null && tempBytes.isNotEmpty) {
+      return MemoryImage(tempBytes);
+    }
+    if (_avatarBytes != null && _avatarBytes!.isNotEmpty) {
+      return MemoryImage(_avatarBytes!);
+    }
+    return NetworkImage(
+      _dicebearUrl(tempStyle ?? _style, tempSeed ?? _seed, size: size),
+    );
+  }
+
+  void _openAvatarPicker() {
+    String tempStyle = _style;
+    String tempSeed = _seed;
+    Uint8List? tempBytes = _avatarBytes;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                16,
+                20,
+                24 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Personalizar avatar',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0B2545),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  CircleAvatar(
+                    radius: 48,
+                    backgroundColor: const Color(0xFFEBF3FF),
+                    backgroundImage: _currentAvatarImage(
+                      tempStyle: tempStyle,
+                      tempSeed: tempSeed,
+                      tempBytes: tempBytes,
+                      size: 200,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          setModalState(() {
+                            tempBytes = null;
+                            tempSeed = '${_userKey}_${Random().nextInt(999999)}';
+                          });
+                        },
+                        icon: const Icon(Icons.shuffle_rounded, size: 18),
+                        label: const Text('Generar variación'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF0F3E7D),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final picked = await _picker.pickImage(
+                            source: ImageSource.gallery,
+                            maxWidth: 512,
+                            maxHeight: 512,
+                            imageQuality: 80,
+                          );
+                          if (picked == null) return;
+                          final bytes = await picked.readAsBytes();
+                          if (bytes.isEmpty) return;
+                          if (bytes.length > 700000) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'La imagen es muy pesada. Elige una más ligera.',
+                                  ),
+                                ),
+                              );
+                            }
+                            return;
+                          }
+                          setModalState(() {
+                            tempBytes = bytes;
+                          });
+                        },
+                        icon: const Icon(Icons.photo_library_outlined, size: 18),
+                        label: const Text('Subir foto'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF0F3E7D),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Estilo',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 84,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _styles.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 14),
+                      itemBuilder: (context, index) {
+                        final style = _styles[index];
+                        final selected = tempBytes == null && style == tempStyle;
+                        final itemUrl =
+                            _dicebearUrl(style, tempSeed, size: 120);
+
+                        return GestureDetector(
+                          onTap: () => setModalState(() {
+                            tempBytes = null;
+                            tempStyle = style;
+                          }),
+                          child: Column(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: selected
+                                        ? const Color(0xFF0F3E7D)
+                                        : const Color(0xFFE2E8F0),
+                                    width: selected ? 2.5 : 1.5,
+                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 26,
+                                  backgroundColor: const Color(0xFFF8FAFC),
+                                  backgroundImage: NetworkImage(itemUrl),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                style,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: selected
+                                      ? const Color(0xFF0F3E7D)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F3E7D),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(modalContext);
+                        if (tempBytes != null) {
+                          final encoded = base64Encode(tempBytes!);
+                          setState(() {
+                            _avatarBytes = tempBytes;
+                            _avatarBase64 = encoded;
+                            _savingAvatar = true;
+                          });
+                          final uid =
+                              FirebaseAuth.instance.currentUser?.uid ?? '';
+                          if (uid.isNotEmpty) {
+                            try {
+                              await FirebaseFirestore.instance
+                                  .collection('usuarios')
+                                  .doc(uid)
+                                  .set(
+                                {
+                                  'avatarType': 'photo',
+                                  'avatarBase64': encoded,
+                                },
+                                SetOptions(merge: true),
+                              );
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'No se pudo guardar la foto: $e',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                          if (mounted) setState(() => _savingAvatar = false);
+                        } else {
+                          _persistDicebearAvatar(tempStyle, tempSeed);
+                        }
+                      },
+                      child: const Text(
+                        'Guardar avatar',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final fallbackLetter =
+        widget.user.name.isNotEmpty ? widget.user.name[0].toUpperCase() : 'U';
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 6, 20, 40),
       children: [
         const SizedBox(height: 10),
-
-        // ── Usar mi ubicación ──
+        Center(
+          child: Column(
+            children: [
+              GestureDetector(
+                onTap: _openAvatarPicker,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    CircleAvatar(
+                      radius: 44,
+                      backgroundColor: const Color(0xFF0F3E7D),
+                      backgroundImage: _currentAvatarImage(size: 160),
+                      onBackgroundImageError: (_, __) {},
+                      child: _savingAvatar
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              fallbackLetter,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                    ),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0B2545),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.edit_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.user.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  color: Color(0xFF0B2545),
+                ),
+              ),
+              Wrap(
+                spacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  TextButton(
+                    onPressed: _openAvatarPicker,
+                    child: const Text(
+                      'Personalizar avatar',
+                      style: TextStyle(
+                        color: Color(0xFF0F3E7D),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _pickAndPersistPhoto,
+                    icon: const Icon(Icons.upload_rounded, size: 16),
+                    label: const Text(
+                      'Subir foto',
+                      style: TextStyle(
+                        color: Color(0xFF1E5BB0),
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
-          child: Column(
-            children: [
-              _SettingToggleTile(
-                icon: Icons.location_on_outlined,
-                title: 'Usar mi ubicación',
-                initialValue: true,
-              ),
-              const Divider(
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              children: [
+                const _SettingToggleTile(
+                  icon: Icons.location_on_outlined,
+                  title: 'Usar mi ubicación',
+                  initialValue: true,
+                ),
+                const Divider(
                   height: 1,
                   indent: 16,
                   endIndent: 16,
-                  color: Color(0xFFF1F5F9)),
-              ListTile(
-                leading: const Icon(Icons.lock_outline,
-                    color: Color(0xFF0F3E7D), size: 22),
-                title: const Text(
-                  'Cambiar contraseña',
-                  style: TextStyle(
+                  color: Color(0xFFF1F5F9),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.lock_outline,
+                    color: Color(0xFF0F3E7D),
+                    size: 22,
+                  ),
+                  title: const Text(
+                    'Cambiar contraseña',
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
-                      color: Color(0xFF0B2545)),
+                      color: Color(0xFF0B2545),
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF94A3B8),
+                  ),
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(18),
+                    ),
+                  ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const _ChangePasswordScreen(),
+                    ),
+                  ),
                 ),
-                trailing: const Icon(Icons.chevron_right_rounded,
-                    color: Color(0xFF94A3B8)),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18)),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const _ChangePasswordScreen()),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 28),
-
         FilledButton.icon(
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFFDC2626),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
+              borderRadius: BorderRadius.circular(14),
+            ),
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
           onPressed: AuthService.logout,
           icon: const Icon(Icons.logout_rounded),
-          label: const Text('Cerrar sesión',
-              style: TextStyle(fontWeight: FontWeight.w700)),
+          label: const Text(
+            'Cerrar sesión',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );
   }
 }
 
-// ── Toggle tile with local state ──
 class _SettingToggleTile extends StatefulWidget {
   final IconData icon;
   final String title;
@@ -102,22 +657,24 @@ class _SettingToggleTileState extends State<_SettingToggleTile> {
   Widget build(BuildContext context) {
     return SwitchListTile.adaptive(
       secondary: Icon(widget.icon, color: const Color(0xFF0F3E7D), size: 22),
-      title: Text(widget.title,
-          style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-              color: Color(0xFF0B2545))),
+      title: Text(
+        widget.title,
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          color: Color(0xFF0B2545),
+        ),
+      ),
       value: _value,
-      activeColor: const Color(0xFF0D3B73),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      activeTrackColor: const Color(0xFF0D3B73),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
       onChanged: (v) => setState(() => _value = v),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CAMBIAR CONTRASEÑA SCREEN
-// ─────────────────────────────────────────────────────────────────────────────
 class _ChangePasswordScreen extends StatefulWidget {
   const _ChangePasswordScreen();
   @override
@@ -160,9 +717,10 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
         _snack('No se pudo obtener la sesión actual.');
         return;
       }
-      // Re‑authenticate
       final cred = EmailAuthProvider.credential(
-          email: user.email!, password: _currentPw.text);
+        email: user.email!,
+        password: _currentPw.text,
+      );
       await user.reauthenticateWithCredential(cred);
       await user.updatePassword(_newPw.text);
       if (mounted) {
@@ -203,7 +761,8 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
       await AuthService.sendPasswordReset(email);
       if (mounted) {
         _snack(
-            'Se envió un enlace de recuperación a $email. Revisa tu correo.');
+          'Se envió un enlace de recuperación a $email. Revisa tu correo.',
+        );
       }
     } catch (e) {
       if (mounted) _snack('No se pudo enviar el correo: $e');
@@ -233,8 +792,11 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
                       border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: const Center(
-                      child: Icon(Icons.chevron_left_rounded,
-                          color: Color(0xFF0F2B48), size: 26),
+                      child: Icon(
+                        Icons.chevron_left_rounded,
+                        color: Color(0xFF0F2B48),
+                        size: 26,
+                      ),
                     ),
                   ),
                 ),
@@ -258,18 +820,18 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
           const Text(
             'Para proteger tu cuenta, ingresa tu contraseña actual y elige una nueva.',
             style: TextStyle(
-                color: Color(0xFF64748B), fontSize: 13, height: 1.4),
+              color: Color(0xFF64748B),
+              fontSize: 13,
+              height: 1.4,
+            ),
           ),
           const SizedBox(height: 24),
-
-          // Contraseña actual
           _pwField(
             controller: _currentPw,
             label: 'Contraseña actual',
             hint: 'Ingresa tu contraseña actual',
             show: _showCurrent,
-            onToggle: () =>
-                setState(() => _showCurrent = !_showCurrent),
+            onToggle: () => setState(() => _showCurrent = !_showCurrent),
             highlighted: true,
           ),
           const SizedBox(height: 8),
@@ -280,15 +842,14 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
               child: const Text(
                 '¿Olvidaste tu contraseña?',
                 style: TextStyle(
-                    color: Color(0xFF1E5BB0),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12.5),
+                  color: Color(0xFF1E5BB0),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.5,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 14),
-
-          // Nueva contraseña
           _pwField(
             controller: _newPw,
             label: 'Nueva contraseña',
@@ -297,25 +858,22 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
             onToggle: () => setState(() => _showNew = !_showNew),
           ),
           const SizedBox(height: 16),
-
-          // Confirmar
           _pwField(
             controller: _confirmPw,
             label: 'Confirmar nueva contraseña',
             hint: 'Repite la nueva contraseña',
             show: _showConfirm,
-            onToggle: () =>
-                setState(() => _showConfirm = !_showConfirm),
+            onToggle: () => setState(() => _showConfirm = !_showConfirm),
           ),
           const SizedBox(height: 28),
-
           SizedBox(
             height: 52,
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF0D3B73),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25)),
+                  borderRadius: BorderRadius.circular(25),
+                ),
               ),
               onPressed: _saving ? null : _save,
               icon: _saving
@@ -323,11 +881,15 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.check_rounded, size: 20),
-              label: const Text('Guardar contraseña',
-                  style:
-                      TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              label: const Text(
+                'Guardar contraseña',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+              ),
             ),
           ),
         ],
@@ -360,14 +922,17 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
         decoration: InputDecoration(
           labelText: label,
           labelStyle: const TextStyle(
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w600,
-              fontSize: 12),
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
           hintText: hint,
-          hintStyle:
-              const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-          prefixIcon: const Icon(Icons.lock_outline,
-              size: 20, color: Color(0xFF64748B)),
+          hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+          prefixIcon: const Icon(
+            Icons.lock_outline,
+            size: 20,
+            color: Color(0xFF64748B),
+          ),
           suffixIcon: IconButton(
             icon: Icon(
               show
@@ -379,8 +944,10 @@ class _ChangePasswordScreenState extends State<_ChangePasswordScreen> {
             onPressed: onToggle,
           ),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 16,
+          ),
         ),
       ),
     );

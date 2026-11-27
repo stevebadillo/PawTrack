@@ -9,6 +9,7 @@ import 'report_form_screen.dart';
 import 'vaccine_form_screen.dart';
 
 final _fmt = DateFormat('dd/MM/yyyy');
+final _timeFmt = DateFormat('HH:mm');
 
 class DogDetailScreen extends StatelessWidget {
   final String dogId;
@@ -45,6 +46,86 @@ class DogDetailScreen extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('No se pudo eliminar el perro: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmVaccineDeletion(
+      BuildContext context, Vaccine vaccine) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar vacuna'),
+        content: Text(
+          '¿Deseas eliminar el registro de "${vaccine.name}"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await DataService.deleteVaccine(dogId, vaccine.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vacuna eliminada.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo eliminar la vacuna: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmMedicalEntryDeletion(
+      BuildContext context, MedicalEntry entry) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Eliminar registro médico'),
+        content: Text(
+          '¿Deseas eliminar "${entry.title}" del historial médico?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626)),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await DataService.deleteMedicalEntry(dogId, entry.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Registro médico eliminado.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo eliminar el registro: $e')),
         );
       }
     }
@@ -93,7 +174,7 @@ class DogDetailScreen extends StatelessWidget {
                         ),
                         child: const Center(
                           child: Icon(Icons.chevron_left_rounded,
-                              color: Color(0xFF0F2B48), size: 26),
+                              color: Color(0xFF06397b), size: 26),
                         ),
                       ),
                     ),
@@ -102,7 +183,7 @@ class DogDetailScreen extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF0F2B48),
+                        color: Color(0xFF06397b),
                       ),
                     ),
                     if (user.isStaff)
@@ -122,7 +203,7 @@ class DogDetailScreen extends StatelessWidget {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
             children: [
-              // Top Warm Card (Beige pastel with watermark)
+              // Top Warm Card
               Container(
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF8EE),
@@ -133,7 +214,6 @@ class DogDetailScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(24),
                   child: Stack(
                     children: [
-                      // Watermark paws
                       Positioned(
                         top: -10,
                         left: -10,
@@ -152,7 +232,6 @@ class DogDetailScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(18),
                         child: Row(
                           children: [
-                            // Dog Photo Thumbnail
                             ClipRRect(
                               borderRadius: BorderRadius.circular(18),
                               child: SizedBox(
@@ -169,7 +248,6 @@ class DogDetailScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 16),
-                            // Dog Details
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,13 +345,12 @@ class DogDetailScreen extends StatelessWidget {
               _medicalFacts(d),
               const SizedBox(height: 20),
 
-              // Los reportes los registra el estudiantado.
               if (!user.isStaff)
                 SizedBox(
                   height: 50,
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D3B73),
+                      backgroundColor: const Color(0xFF06397b),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(25)),
                     ),
@@ -306,7 +383,7 @@ class DogDetailScreen extends StatelessWidget {
                   if (user.isStaff)
                     TextButton.icon(
                       style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF1E5BB0)),
+                          foregroundColor: const Color(0xFF06397b)),
                       onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -415,7 +492,7 @@ class DogDetailScreen extends StatelessWidget {
                                     ),
                                     if (v.nextDate != null)
                                       Text(
-                                        'Próxima dosis: ${_fmt.format(v.nextDate!)}',
+                                        'Próxima dosis: ${_fmt.format(v.nextDate!)} · ${_timeFmt.format(v.nextDate!)}',
                                         style: const TextStyle(
                                           color: Color(0xFFB45309),
                                           fontSize: 12,
@@ -425,6 +502,17 @@ class DogDetailScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
+                              if (user.isStaff)
+                                IconButton(
+                                  tooltip: 'Eliminar vacuna',
+                                  onPressed: () =>
+                                      _confirmVaccineDeletion(context, v),
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: Color(0xFFDC2626),
+                                    size: 20,
+                                  ),
+                                ),
                             ],
                           ),
                         );
@@ -435,6 +523,7 @@ class DogDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
+              // Historial médico Section
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -447,6 +536,8 @@ class DogDetailScreen extends StatelessWidget {
                   ),
                   if (user.isStaff)
                     TextButton.icon(
+                      style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF06397b)),
                       onPressed: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -495,6 +586,10 @@ class DogDetailScreen extends StatelessWidget {
                             title: entry.title,
                             description: entry.description,
                             documents: entry.documents,
+                            onDelete: user.isStaff
+                                ? () => _confirmMedicalEntryDeletion(
+                                    context, entry)
+                                : null,
                           ),
                         ),
                     ],
@@ -566,6 +661,7 @@ class DogDetailScreen extends StatelessWidget {
     required String title,
     required String description,
     List<String> documents = const [],
+    VoidCallback? onDelete,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -630,6 +726,16 @@ class DogDetailScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (onDelete != null)
+            IconButton(
+              tooltip: 'Eliminar registro médico',
+              onPressed: onDelete,
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: Color(0xFFDC2626),
+                size: 20,
+              ),
+            ),
         ],
       ),
     );
@@ -682,113 +788,3 @@ class DogDetailScreen extends StatelessWidget {
   }
 }
 
-class _VaccineDialog extends StatefulWidget {
-  final String dogId;
-  const _VaccineDialog({required this.dogId});
-  @override
-  State<_VaccineDialog> createState() => _VaccineDialogState();
-}
-
-class _VaccineDialogState extends State<_VaccineDialog> {
-  final _name = TextEditingController();
-  final _notes = TextEditingController();
-  DateTime _applied = DateTime.now();
-  DateTime? _next;
-  bool _saving = false;
-
-  @override
-  void dispose() {
-    _name.dispose();
-    _notes.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickApplied() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _applied,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
-    if (d != null) setState(() => _applied = d);
-  }
-
-  Future<void> _pickNext() async {
-    final d = await showDatePicker(
-      context: context,
-      initialDate: _applied.add(const Duration(days: 365)),
-      firstDate: _applied,
-      lastDate: DateTime.now().add(const Duration(days: 365 * 3)),
-    );
-    if (d != null) setState(() => _next = d);
-  }
-
-  Future<void> _save() async {
-    if (_name.text.trim().isEmpty) return;
-    setState(() => _saving = true);
-    try {
-      await DataService.addVaccine(
-        widget.dogId,
-        _name.text.trim(),
-        _applied,
-        _next,
-        _notes.text.trim(),
-      );
-      if (mounted) Navigator.pop(context);
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Nueva vacuna o tratamiento',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _name,
-              decoration: const InputDecoration(
-                  labelText: 'Nombre (ej: Antirrábica, Parvovirus)'),
-            ),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Fecha de aplicación'),
-              subtitle: Text(_fmt.format(_applied)),
-              trailing: const Icon(Icons.calendar_today_outlined),
-              onTap: _pickApplied,
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Próxima dosis (opcional)'),
-              subtitle:
-                  Text(_next == null ? 'No programada' : _fmt.format(_next!)),
-              trailing: const Icon(Icons.calendar_today_outlined),
-              onTap: _pickNext,
-            ),
-            TextField(
-              controller: _notes,
-              decoration: const InputDecoration(labelText: 'Notas adicionales'),
-              maxLines: 2,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar')),
-        FilledButton(
-          style:
-              FilledButton.styleFrom(backgroundColor: const Color(0xFF0D3B73)),
-          onPressed: _saving ? null : _save,
-          child: const Text('Guardar'),
-        ),
-      ],
-    );
-  }
-}
