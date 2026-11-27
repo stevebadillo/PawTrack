@@ -92,10 +92,12 @@ class _DogFormScreenState extends State<DogFormScreen> {
         try {
           final breeds = await BreedAnalysisService.analyze(bytes);
           if (mounted) setState(() => _breedAnalysis = breeds);
-        } catch (_) {
+        } catch (error) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No se pudo estimar la raza; puedes guardar la foto e intentarlo más tarde.')),
+              SnackBar(content: Text(
+                'No se pudo estimar la raza: ${error.toString().replaceFirst('Exception: ', '')}',
+              )),
             );
           }
         } finally {

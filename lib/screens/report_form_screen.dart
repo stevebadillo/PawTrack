@@ -115,10 +115,12 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
         try {
           final breeds = await BreedAnalysisService.analyze(bytes);
           if (mounted) setState(() => _breedAnalysis = breeds);
-        } catch (_) {
+        } catch (error) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('No se pudo estimar la raza; el reporte puede enviarse igualmente.')),
+              SnackBar(content: Text(
+                'No se pudo estimar la raza: ${error.toString().replaceFirst('Exception: ', '')}',
+              )),
             );
           }
         } finally {
