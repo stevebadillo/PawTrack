@@ -8,6 +8,7 @@ import 'map_screen.dart';
 import 'report_form_screen.dart';
 import 'notifications_screen.dart';
 import 'settings_screen.dart';
+import 'pawbot_screen.dart';
 
 // ============================================================================
 // PANTALLA CONTENEDORA PRINCIPAL (HomeScreen)
@@ -265,6 +266,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   const SizedBox(height: 8),
+                  // PawBot (Asistente Virtual Inteligente)
+                  _DrawerItem(
+                    title: 'Asistente PawBot',
+                    icon: Icons.smart_toy_outlined,
+                    iconColor: const Color(0xFF1E5BB0),
+                    isActive: false,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => PawBotScreen(user: user)),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
                   // Configuraciones
                   _DrawerItem(
                     title: 'Configuraciones',
@@ -296,6 +313,26 @@ class _HomeScreenState extends State<HomeScreen> {
               child: IndexedStack(index: _tab, children: pages),
             ),
           ),
+          floatingActionButton: _tab == 0
+              ? FloatingActionButton.extended(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => PawBotScreen(user: user)),
+                  ),
+                  backgroundColor: const Color(0xFF0D3B73),
+                  foregroundColor: Colors.white,
+                  elevation: 4,
+                  icon: const Icon(Icons.pets_rounded, size: 20),
+                  label: const Text(
+                    'PawBot',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                )
+              : null,
         );
       },
     );

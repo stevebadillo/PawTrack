@@ -368,14 +368,14 @@ class NotificationService {
                     ),
                     child: Row(
                       children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            width: 42,
+                            height: 42,
+                            fit: BoxFit.cover,
                           ),
-                          child: Icon(icon, color: Colors.white, size: 22),
                         ),
                         const SizedBox(width: 12),
                         Expanded(

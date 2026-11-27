@@ -105,8 +105,8 @@ class DogFactService {
         'icon': 'hotel',
       },
       {
-        'title': 'Collar rojo de atención',
-        'desc': 'Los perros con collar rojo requieren mayor precaución o están en tratamiento médico.',
+        'title': 'Collar rojo identificativo',
+        'desc': 'Es un identificativo que tiene el nombre del perro, el nombre de la ESPOCH y un número de emergencia.',
         'icon': 'health_and_safety',
       },
     ];
