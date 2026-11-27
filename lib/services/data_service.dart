@@ -152,8 +152,7 @@ class DataService {
       });
 
   /// Elimina una entrada médica específica de un perro.
-  static Future<void> deleteMedicalEntry(
-          String dogId, String entryId) =>
+  static Future<void> deleteMedicalEntry(String dogId, String entryId) =>
       _db
           .collection('$dogCollection/$dogId/$medicalCollection')
           .doc(entryId)
@@ -335,7 +334,7 @@ class DataService {
     return docRef.id;
   }
 
-  static Future<void> updateDogBreedAnalysisFromReport(
+    static Future<void> updateDogBreedAnalysisFromReport(
     String dogId,
     String reportId,
     List<Map<String, dynamic>> breedAnalysis,
@@ -357,9 +356,11 @@ class DataService {
       final reportDoc = await _db.collection(reportCollection).doc(id).get();
       final rData = reportDoc.data();
       if (rData != null) {
-        final reporterId = (rData['reporterId'] ?? rData['usuarioId'])?.toString();
-        final dogLabel = (rData['dogName'] ?? rData['perroNombre'])?.toString() ??
-            'Perro sin identificar';
+        final reporterId =
+            (rData['reporterId'] ?? rData['usuarioId'])?.toString();
+        final dogLabel =
+            (rData['dogName'] ?? rData['perroNombre'])?.toString() ??
+                'Perro sin identificar';
         final readableStatus = switch (status) {
           'en_revision' || 'en_atencion' => 'En revisión',
           'resuelto' => 'Resuelto',
@@ -483,3 +484,6 @@ class DataService {
     });
   }
 }
+
+
+
