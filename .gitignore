@@ -56,3 +56,5 @@ calendario_credenciales.json
 linux/
 macos/
 windows/
+# Clave de Pollinations (solo local, no subir)
+pollinations.local.json

@@ -383,8 +383,8 @@ class NotificationService {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: const [
+                              const Row(
+                                children: [
                                   Icon(Icons.pets,
                                       size: 12, color: Color(0xFF93C5FD)),
                                   SizedBox(width: 5),

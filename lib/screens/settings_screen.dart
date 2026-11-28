@@ -6,7 +6,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/models.dart';
+import '../services/ai_avatar_service.dart';
 import '../services/auth_service.dart';
+import '../services/avatar_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AppUser user;
@@ -17,17 +19,12 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const List<String> _styles = [
-    'critters',
-    'fun-emoji',
-    'thumbs',
-  ];
+  static const List<String> _styles = AvatarService.userStyles;
 
   final ImagePicker _picker = ImagePicker();
 
   late String _style;
   late String _seed;
-  String? _avatarBase64;
   Uint8List? _avatarBytes;
   bool _savingAvatar = false;
 
@@ -41,13 +38,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _style = 'critters';
+    _style = AvatarService.defaultUserStyle;
     _seed = _userKey;
     _loadSavedAvatar();
   }
 
   String _dicebearUrl(String style, String seed, {int size = 160}) =>
-      'https://api.dicebear.com/9.x/$style/png?seed=${Uri.encodeComponent(seed)}&size=$size';
+      AvatarService.userAvatarUrl(seed: seed, style: style, size: size);
 
   Future<void> _loadSavedAvatar() async {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -78,10 +75,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _seed = savedSeed;
           }
           if (decodedBytes != null && decodedBytes.isNotEmpty) {
-            _avatarBase64 = savedBase64;
             _avatarBytes = decodedBytes;
           } else {
-            _avatarBase64 = null;
             _avatarBytes = null;
           }
         });
@@ -93,7 +88,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _style = newStyle;
       _seed = newSeed;
-      _avatarBase64 = null;
       _avatarBytes = null;
       _savingAvatar = true;
     });
@@ -155,7 +149,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final encoded = base64Encode(bytes);
       setState(() {
         _avatarBytes = bytes;
-        _avatarBase64 = encoded;
         _savingAvatar = true;
       });
 
@@ -206,6 +199,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String tempStyle = _style;
     String tempSeed = _seed;
     Uint8List? tempBytes = _avatarBytes;
+    bool tempIsAi = false;
+    bool generatingAi = false;
 
     showModalBottomSheet(
       context: context,
@@ -248,13 +243,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   CircleAvatar(
                     radius: 48,
                     backgroundColor: const Color(0xFFEBF3FF),
-                    backgroundImage: _currentAvatarImage(
-                      tempStyle: tempStyle,
-                      tempSeed: tempSeed,
-                      tempBytes: tempBytes,
-                      size: 200,
-                    ),
+                    backgroundImage: generatingAi
+                        ? null
+                        : _currentAvatarImage(
+                            tempStyle: tempStyle,
+                            tempSeed: tempSeed,
+                            tempBytes: tempBytes,
+                            size: 200,
+                          ),
+                    child: generatingAi
+                        ? const CircularProgressIndicator()
+                        : null,
                   ),
+                  if (generatingAi)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Creando tu avatar con IA… puede tardar hasta un minuto.',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 10,
@@ -265,6 +273,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onPressed: () {
                           setModalState(() {
                             tempBytes = null;
+                            tempIsAi = false;
                             tempSeed = '${_userKey}_${Random().nextInt(999999)}';
                           });
                         },
@@ -303,6 +312,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           }
                           setModalState(() {
                             tempBytes = bytes;
+                            tempIsAi = false;
                           });
                         },
                         icon: const Icon(Icons.photo_library_outlined, size: 18),
@@ -310,6 +320,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF0F3E7D),
                           side: const BorderSide(color: Color(0xFFCBD5E1)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      // Sube una foto y la convierte en avatar con IA
+                      // (Pollinations, model=kontext).
+                      FilledButton.tonalIcon(
+                        onPressed: generatingAi
+                            ? null
+                            : () async {
+                                final picked = await _picker.pickImage(
+                                  source: ImageSource.gallery,
+                                  maxWidth: 1024,
+                                  maxHeight: 1024,
+                                  imageQuality: 85,
+                                );
+                                if (picked == null) return;
+                                final photo = await picked.readAsBytes();
+                                if (photo.isEmpty) return;
+                                setModalState(() => generatingAi = true);
+                                try {
+                                  final avatar =
+                                      await AiAvatarService.avatarFromPhoto(
+                                          photo);
+                                  if (avatar.length > 700000) {
+                                    throw const AiAvatarException(
+                                        'El avatar generado es muy pesado. Intenta de nuevo.');
+                                  }
+                                  setModalState(() {
+                                    tempBytes = avatar;
+                                    tempIsAi = true;
+                                  });
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('$e')),
+                                    );
+                                  }
+                                } finally {
+                                  if (context.mounted) {
+                                    setModalState(() => generatingAi = false);
+                                  }
+                                }
+                              },
+                        icon: const Icon(Icons.auto_awesome, size: 18),
+                        label: const Text('Crear avatar con IA'),
+                        style: FilledButton.styleFrom(
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -345,6 +403,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         return GestureDetector(
                           onTap: () => setModalState(() {
                             tempBytes = null;
+                            tempIsAi = false;
                             tempStyle = style;
                           }),
                           child: Column(
@@ -397,13 +456,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: () async {
+                      onPressed: generatingAi
+                          ? null
+                          : () async {
+                        // Se toma el messenger de la pantalla (no del modal)
+                        // antes de cerrar el modal y de esperar a Firestore.
+                        final messenger = ScaffoldMessenger.of(this.context);
                         Navigator.pop(modalContext);
                         if (tempBytes != null) {
                           final encoded = base64Encode(tempBytes!);
                           setState(() {
                             _avatarBytes = tempBytes;
-                            _avatarBase64 = encoded;
                             _savingAvatar = true;
                           });
                           final uid =
@@ -415,14 +478,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   .doc(uid)
                                   .set(
                                 {
-                                  'avatarType': 'photo',
+                                  'avatarType': tempIsAi ? 'ai' : 'photo',
                                   'avatarBase64': encoded,
                                 },
                                 SetOptions(merge: true),
                               );
                             } catch (e) {
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                messenger.showSnackBar(
                                   SnackBar(
                                     content: Text(
                                       'No se pudo guardar la foto: $e',

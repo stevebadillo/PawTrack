@@ -108,10 +108,12 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
           }
           return;
         }
-        if (mounted) setState(() {
+        if (mounted) {
+          setState(() {
           _photo = bytes;
           _breedAnalysis = const [];
         });
+        }
         try {
           final breeds = await BreedAnalysisService.analyze(bytes);
           if (mounted) setState(() => _breedAnalysis = breeds);
@@ -355,6 +357,17 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
           ),
           const SizedBox(height: 10),
           _buildMapCard(),
+          if (_locError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'No se pudo obtener tu ubicación. Revisa el permiso de GPS e inténtalo de nuevo.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: Container(
@@ -640,8 +653,8 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                     value: _dog,
                     isExpanded: true,
                     icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF0F2B48)),
-                    hint: Row(
-                      children: const [
+                    hint: const Row(
+                      children: [
                         Icon(Icons.pets_outlined, size: 20, color: Color(0xFF0D3B73)),
                         SizedBox(width: 10),
                         Text(
@@ -651,10 +664,10 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                       ],
                     ),
                     items: [
-                      DropdownMenuItem<Dog?>(
+                      const DropdownMenuItem<Dog?>(
                         value: null,
                         child: Row(
-                          children: const [
+                          children: [
                             Icon(Icons.pets_outlined, size: 20, color: Color(0xFF0D3B73)),
                             SizedBox(width: 10),
                             Text(
@@ -737,7 +750,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                             point: latLng,
                             radius: 36,
                             useRadiusInMeter: false,
-                            color: const Color(0xFF1E5BB0).withOpacity(0.18),
+                            color: const Color(0xFF1E5BB0).withValues(alpha: 0.18),
                             borderColor: const Color(0xFF1E5BB0),
                             borderStrokeWidth: 1.5,
                           ),
@@ -771,7 +784,7 @@ class _ReportFormScreenState extends State<ReportFormScreen> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 6,
                             ),
                           ],

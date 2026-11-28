@@ -649,9 +649,9 @@ class _TypingIndicatorBubble extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 SizedBox(
                   width: 14,
                   height: 14,

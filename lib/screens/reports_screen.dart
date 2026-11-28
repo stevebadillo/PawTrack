@@ -6,7 +6,6 @@ import 'package:latlong2/latlong.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
 import '../widgets/breed_analysis_card.dart';
-import 'dog_detail_screen.dart';
 import 'edit_report_screen.dart';
 import 'report_form_screen.dart';
 
@@ -1316,7 +1315,7 @@ class _ReportSheetState extends State<ReportSheet> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(.62),
+                              color: Colors.black.withValues(alpha: .62),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Row(
@@ -1342,8 +1341,8 @@ class _ReportSheetState extends State<ReportSheet> {
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                child: Row(
-                  children: const [
+                child: const Row(
+                  children: [
                     Icon(Icons.image_outlined, color: Color(0xFF94A3B8), size: 22),
                     SizedBox(width: 10),
                     Text('Sin fotos adjuntas', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w600)),
@@ -1382,7 +1381,7 @@ class _ReportSheetState extends State<ReportSheet> {
                               CircleMarker(
                                 point: latLng,
                                 radius: 32,
-                                color: const Color(0xFF1E5BB0).withOpacity(0.18),
+                                color: const Color(0xFF1E5BB0).withValues(alpha: 0.18),
                                 borderColor: const Color(0xFF1E5BB0),
                                 borderStrokeWidth: 1.5,
                               ),
@@ -1539,7 +1538,7 @@ class _ReportSheetState extends State<ReportSheet> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.15),
+              color: iconColor.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -1564,7 +1563,7 @@ class _ReportSheetState extends State<ReportSheet> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 11.5,
-                    color: iconColor.withOpacity(0.85),
+                    color: iconColor.withValues(alpha: 0.85),
                   ),
                 ),
               ],
@@ -1588,7 +1587,7 @@ class _ReportSheetState extends State<ReportSheet> {
   void _showPhotoViewer(BuildContext context, Report report) {
     showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withOpacity(.88),
+      barrierColor: Colors.black.withValues(alpha: .88),
       builder: (_) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.all(12),

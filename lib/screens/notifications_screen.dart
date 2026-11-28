@@ -190,12 +190,12 @@ class NotificationsScreen extends StatelessWidget {
                       items.sort((a, b) => b.date.compareTo(a.date));
 
                       if (items.isEmpty) {
-                        return Center(
+                        return const Center(
                           child: Padding(
-                            padding: const EdgeInsets.all(32),
+                            padding: EdgeInsets.all(32),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
-                              children: const [
+                              children: [
                                 Icon(Icons.notifications_none_rounded,
                                     size: 54, color: Color(0xFF94A3B8)),
                                 SizedBox(height: 16),

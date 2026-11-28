@@ -50,6 +50,7 @@ class BreedPrediction {
 
 class Dog {
   final String id, name, sex, color, description, photoUrl;
+  final String aiAvatarUrl; // Avatar caricatura generado con IA (Pollinations)
   final bool hasRedCollar;
   final DateTime createdAt;
   final String age; // Edad aproximada en años
@@ -64,6 +65,7 @@ class Dog {
     required this.color,
     required this.description,
     required this.photoUrl,
+    this.aiAvatarUrl = '',
     required this.hasRedCollar,
     required this.createdAt,
     this.age = '3',
@@ -88,6 +90,7 @@ class Dog {
       color: m['color'] ?? '',
       description: m['description'] ?? m['descripcion'] ?? '',
       photoUrl: m['photoUrl'] ?? '',
+      aiAvatarUrl: m['aiAvatarUrl'] ?? '',
       hasRedCollar: m['hasRedCollar'] ?? m['collarRojo'] ?? false,
       createdAt: (m['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       age: m['age']?.toString() ?? m['edad']?.toString() ?? '3',

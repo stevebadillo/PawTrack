@@ -261,6 +261,7 @@ class ContactsScreen extends StatelessWidget {
               .delete();
         } else {
           // Si es un contacto por defecto que aún no se guardó en Firestore, solo lo filtramos visualmente o informamos
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Este contacto predeterminado no se encuentra en Firestore para eliminar.')),
           );

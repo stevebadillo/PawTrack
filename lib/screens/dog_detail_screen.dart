@@ -4,6 +4,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
 import '../widgets/breed_analysis_card.dart';
+import '../widgets/ai_avatar_card.dart';
+import '../widgets/dog_avatar.dart';
 import 'dog_form_screen.dart';
 import 'medical_entry_screen.dart';
 import 'report_form_screen.dart';
@@ -233,20 +235,11 @@ class DogDetailScreen extends StatelessWidget {
                         padding: const EdgeInsets.all(18),
                         child: Row(
                           children: [
-                            ClipRRect(
+                            DogAvatar(
+                              dog: d,
+                              width: 105,
+                              height: 115,
                               borderRadius: BorderRadius.circular(18),
-                              child: SizedBox(
-                                width: 105,
-                                height: 115,
-                                child: d.photoUrl.isNotEmpty
-                                    ? Image.network(
-                                        d.photoUrl,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (_, __, ___) =>
-                                            _photoPlaceholder(),
-                                      )
-                                    : _photoPlaceholder(),
-                              ),
                             ),
                             const SizedBox(width: 16),
                             Expanded(
@@ -343,6 +336,7 @@ class DogDetailScreen extends StatelessWidget {
                 const SizedBox(height: 18),
               ],
 
+              AiAvatarCard(dog: d, canGenerate: user.isStaff),
               BreedAnalysisCard(breeds: d.breedAnalysis),
               _medicalFacts(d),
               const SizedBox(height: 20),
@@ -785,14 +779,5 @@ class DogDetailScreen extends StatelessWidget {
         );
       }
     }
-  }
-
-  Widget _photoPlaceholder() {
-    return Container(
-      color: const Color(0xFFF1F5FB),
-      child: const Center(
-        child: Icon(Icons.pets, size: 40, color: Color(0xFF93C5FD)),
-      ),
-    );
   }
 }

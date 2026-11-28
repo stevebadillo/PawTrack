@@ -58,9 +58,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? 'No encontramos tu perfil en usuarios ni en la colección anterior. Si fue eliminado por error, pídele al administrador que lo restaure.'
                         : 'Comprueba tu conexión y vuelve a iniciar sesión.'),
                     const SizedBox(height: 16),
-                    FilledButton.tonal(
+                    const FilledButton.tonal(
                         onPressed: AuthService.logout,
-                        child: const Text('Cerrar sesión')),
+                        child: Text('Cerrar sesión')),
                   ],
                 ),
               ),
@@ -114,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Border.all(color: const Color(0xFFE2E8F0)),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.03),
+                                  color: Colors.black.withValues(alpha: 0.03),
                                   blurRadius: 4,
                                   offset: const Offset(0, 2),
                                 ),

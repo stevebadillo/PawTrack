@@ -66,10 +66,10 @@ class _MapScreenState extends State<MapScreen> {
         return Column(
           children: [
             // Bloque 1: Encabezado superior del mapa
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 6, 20, 10),
               child: Row(
-                children: const [
+                children: [
                   Text(
                     'Mapa de incidencias',
                     style: TextStyle(
@@ -107,7 +107,7 @@ class _MapScreenState extends State<MapScreen> {
                             CircleMarker(
                               point: _userLocation!,
                               radius: 28,
-                              color: const Color(0xFF1E5BB0).withOpacity(0.2),
+                              color: const Color(0xFF1E5BB0).withValues(alpha: 0.2),
                               borderColor: const Color(0xFF1E5BB0),
                               borderStrokeWidth: 1.5,
                             ),
@@ -152,7 +152,7 @@ class _MapScreenState extends State<MapScreen> {
                                         width: 44,
                                         height: 44,
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFF97316).withOpacity(0.25),
+                                          color: const Color(0xFFF97316).withValues(alpha: 0.25),
                                           shape: BoxShape.circle,
                                         ),
                                       ),
@@ -184,7 +184,7 @@ class _MapScreenState extends State<MapScreen> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.12),
+                              color: Colors.black.withValues(alpha: 0.12),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -210,7 +210,7 @@ class _MapScreenState extends State<MapScreen> {
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
+                              color: Colors.black.withValues(alpha: 0.08),
                               blurRadius: 16,
                               offset: const Offset(0, -4),
                             ),

@@ -269,7 +269,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(22),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF0A1E3C).withOpacity(0.22),
+                        color: const Color(0xFF0A1E3C).withValues(alpha: 0.22),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -391,8 +391,8 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 22),
 
               // Divisor horizontal con el texto "o continúa con"
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Expanded(child: Divider(color: Color(0xFFE2E8F0), thickness: 1)),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 14),
@@ -423,9 +423,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   onPressed: _loading ? null : _loginWithGoogle,
-                  child: Row(
+                  child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       _GoogleLogoIcon(size: 18),
                       SizedBox(width: 10),
                       Text(
@@ -733,7 +733,7 @@ class _LoginScreenState extends State<LoginScreen> {
               border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
+                  color: Colors.black.withValues(alpha: 0.03),
                   blurRadius: 6,
                   offset: const Offset(0, 2),
                 ),
@@ -757,7 +757,7 @@ class _LoginScreenState extends State<LoginScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF0A1E3C).withOpacity(0.15),
+                color: const Color(0xFF0A1E3C).withValues(alpha: 0.15),
                 blurRadius: 8,
                 offset: const Offset(0, 3),
               ),
@@ -953,7 +953,7 @@ class _PrimaryAuthButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1B4D8E).withOpacity(0.28),
+            color: const Color(0xFF1B4D8E).withValues(alpha: 0.28),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -963,7 +963,7 @@ class _PrimaryAuthButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: const Color(0xFF1B4D8E),
           foregroundColor: Colors.white,
-          disabledBackgroundColor: const Color(0xFF1B4D8E).withOpacity(0.6),
+          disabledBackgroundColor: const Color(0xFF1B4D8E).withValues(alpha: 0.6),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -1022,7 +1022,7 @@ class _PawWatermarkPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = const Color(0xFFE9F0FA).withOpacity(0.75)
+      ..color = const Color(0xFFE9F0FA).withValues(alpha: 0.75)
       ..style = PaintingStyle.fill;
 
     // Almohadilla central grande de la huella

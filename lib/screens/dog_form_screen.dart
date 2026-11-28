@@ -341,9 +341,9 @@ class _DogFormScreenState extends State<DogFormScreen> {
                           ? Image.memory(_photo!, fit: BoxFit.cover)
                           : Container(
                               color: const Color(0xFFF1F5FB),
-                              child: Column(
+                              child: const Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
+                                children: [
                                   Icon(Icons.pets,
                                       size: 40, color: Color(0xFF93C5FD)),
                                   SizedBox(height: 6),
@@ -488,7 +488,7 @@ class _DogFormScreenState extends State<DogFormScreen> {
                         fontSize: 14,
                         color: Color(0xFF0B2545))),
                 value: _sterilized,
-                activeColor: const Color(0xFF0D3B73),
+                activeThumbColor: const Color(0xFF0D3B73),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
                 shape: RoundedRectangleBorder(

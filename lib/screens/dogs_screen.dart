@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/data_service.dart';
+import '../widgets/dog_avatar.dart';
 import 'dog_detail_screen.dart';
 import 'dog_form_screen.dart';
 
@@ -77,14 +78,15 @@ class _DogsScreenState extends State<DogsScreen> {
       stream: DataService.dogs(),
       builder: (context, snap) {
         if (snap.hasError) {
-          return _DogsMessage(
+          return const _DogsMessage(
             icon: Icons.cloud_off_outlined,
             title: 'No se pudo cargar el catálogo',
             message: 'Comprueba la conexión a internet e inténtalo de nuevo.',
           );
         }
-        if (!snap.hasData)
+        if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
         final dogs = snap.data!;
         final filtered = dogs.where((dog) {
           final query = _query.toLowerCase();
@@ -227,28 +229,7 @@ class _DogCard extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: SizedBox(
-                  width: 72,
-                  height: 72,
-                  child: dog.photoUrl.isEmpty
-                      ? ColoredBox(
-                          color: colors.secondaryContainer,
-                          child: Icon(Icons.pets_rounded,
-                              color: colors.onSecondaryContainer, size: 32),
-                        )
-                      : Image.network(
-                          dog.photoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => ColoredBox(
-                            color: colors.secondaryContainer,
-                            child: Icon(Icons.pets_rounded,
-                                color: colors.onSecondaryContainer, size: 32),
-                          ),
-                        ),
-                ),
-              ),
+              DogAvatar(dog: dog, width: 72, height: 72),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(

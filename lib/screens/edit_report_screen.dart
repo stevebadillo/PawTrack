@@ -210,7 +210,7 @@ class _EditReportScreenState extends State<EditReportScreen> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFDA4AF).withOpacity(0.3),
+                    color: const Color(0xFFFDA4AF).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Center(
@@ -218,10 +218,10 @@ class _EditReportScreenState extends State<EditReportScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         'Pendiente',
                         style: TextStyle(
@@ -308,9 +308,9 @@ class _EditReportScreenState extends State<EditReportScreen> {
                       strokeAlign: BorderSide.strokeAlignInside,
                     ),
                   ),
-                  child: Column(
+                  child: const Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       Icon(Icons.add, color: Color(0xFF2563EB), size: 26),
                       SizedBox(height: 4),
                       Text(
@@ -384,10 +384,10 @@ class _EditReportScreenState extends State<EditReportScreen> {
           const SizedBox(height: 22),
 
           // Ubicación
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Ubicación',
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF0B2545)),
               ),
@@ -396,7 +396,7 @@ class _EditReportScreenState extends State<EditReportScreen> {
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E5BB0),
+                  color: Color(0xFF1E5BB0),
                 ),
               ),
             ],
@@ -597,10 +597,10 @@ class _EditReportScreenState extends State<EditReportScreen> {
                   ],
                 ),
                 items: [
-                  DropdownMenuItem<Dog?>(
+                  const DropdownMenuItem<Dog?>(
                     value: null,
                     child: Row(
-                      children: const [
+                      children: [
                         Icon(Icons.pets_outlined, size: 20, color: Color(0xFF0D3B73)),
                         SizedBox(width: 10),
                         Text(
@@ -670,7 +670,7 @@ class _EditReportScreenState extends State<EditReportScreen> {
                         point: latLng,
                         radius: 36,
                         useRadiusInMeter: false,
-                        color: const Color(0xFF1E5BB0).withOpacity(0.18),
+                        color: const Color(0xFF1E5BB0).withValues(alpha: 0.18),
                         borderColor: const Color(0xFF1E5BB0),
                         borderStrokeWidth: 1.5,
                       ),
